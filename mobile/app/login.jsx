@@ -1,0 +1,103 @@
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+} from "react-native";
+
+export default function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  return (
+    <View style={styles.container}>
+      <Image
+        source={require("../assets/images/login_person.png")}
+        style={{
+          height: "40%",
+          width: "100%",
+          alignItems: "center",
+          marginBottom: 30,
+          marginTop: -160,
+        }}
+      />
+
+      <Text style={styles.title}>Welcome Back</Text>
+
+      <TextInput
+        style={styles.input}
+        placeholder="Email" // get the users email
+        placeholderTextColor="#8e8e8e"
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Password" //get the users password
+        placeholderTextColor="#8e8e8e"
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
+      />
+
+      <TouchableOpacity style={styles.button}>
+        <Text style={styles.buttonText}>Log In</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.footer}>
+        Don't have an account? <Text style={styles.loginText}>Sign Up</Text>
+      </Text>
+    </View>
+  );
+}
+
+//the style and coloring of this page
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#DCB083", // same coffee–cream tone
+    paddingHorizontal: 24,
+    justifyContent: "center",
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#4a2c1a",
+    marginBottom: 40,
+    textAlign: "center",
+  },
+  input: {
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 10,
+    fontSize: 16,
+    marginBottom: 15,
+  },
+  button: {
+    backgroundColor: "#4a2c1a",
+    paddingVertical: 15,
+    borderRadius: 10,
+    marginTop: 10,
+  },
+  buttonText: {
+    textAlign: "center",
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  footer: {
+    marginTop: 20,
+    textAlign: "center",
+    color: "#4a2c1a",
+    fontSize: 14,
+  },
+  loginText: {
+    fontWeight: "700",
+    textDecorationLine: "underline",
+  },
+});
