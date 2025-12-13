@@ -10,7 +10,8 @@ import {
   ScrollView,
   SafeAreaView,
 } from "react-native";
-import { Link } from "expo-router"; // Import Link from expo-router
+import { Link, router } from "expo-router"; // Import Link from expo-router
+
 
 export default function SignupScreen() {
   return (
@@ -66,7 +67,7 @@ export default function SignupScreen() {
           </View>
 
           {/* Sign Up Button */}
-          <TouchableOpacity style={styles.button}>
+          <TouchableOpacity style={styles.button} onPress={() => router.push('/dashboard')}>
             <Text style={styles.buttonText}>Create Account</Text>
           </TouchableOpacity>
 
@@ -76,6 +77,8 @@ export default function SignupScreen() {
             <Link href="/login" style={styles.footerLink}>
               Log In
             </Link>
+          </View>
+          <View style={{ alignItems: 'center' }}>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

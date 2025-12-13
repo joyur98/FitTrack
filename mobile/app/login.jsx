@@ -1,3 +1,4 @@
+import { Link, router } from "expo-router";
 import React, { useState } from "react";
 import {
   View,
@@ -11,7 +12,6 @@ import {
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   return (
     <View style={styles.container}>
       <Image
@@ -45,7 +45,7 @@ export default function Login() {
         onChangeText={setPassword}
       />
 
-      <TouchableOpacity style={styles.button}>
+      <TouchableOpacity style={styles.button} onPress={() => {console.log("Pressed"); router.push('/dashboard');}}>
         <Text style={styles.buttonText}>Log In</Text>
       </TouchableOpacity>
 
