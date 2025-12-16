@@ -12,6 +12,7 @@ import {
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  
   return (
     <View style={styles.container}>
       <Image
@@ -29,7 +30,7 @@ export default function Login() {
 
       <TextInput
         style={styles.input}
-        placeholder="Email" // get the users email
+        placeholder="Email"
         placeholderTextColor="#8e8e8e"
         value={email}
         onChangeText={setEmail}
@@ -38,12 +39,28 @@ export default function Login() {
 
       <TextInput
         style={styles.input}
-        placeholder="Password" //get the users password
+        placeholder="Password"
         placeholderTextColor="#8e8e8e"
         secureTextEntry
         value={password}
         onChangeText={setPassword}
       />
+
+      {/* ========== ADD FORGOT PASSWORD LINK HERE ========== */}
+      <TouchableOpacity 
+        style={{ alignSelf: "flex-end", marginBottom: 20 }}
+        onPress={() => router.push("/forgotPassword")}
+      >
+        <Text style={{ 
+          color: "#4a2c1a", 
+          fontWeight: "600",
+          fontSize: 14,
+          textDecorationLine: "underline" 
+        }}>
+          Forgot Password?
+        </Text>
+      </TouchableOpacity>
+      {/* ========== END ADD ========== */}
 
       <TouchableOpacity style={styles.button} onPress={() => {console.log("Pressed"); router.push('/dashboard');}}>
         <Text style={styles.buttonText}>Log In</Text>
