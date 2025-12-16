@@ -67,8 +67,9 @@ export default function Login() {
       </TouchableOpacity>
 
       <Text style={styles.footer}>
-        Don't have an account? <Text style={styles.loginText}>Sign Up</Text>
+        Don't have an account? <Link href={"/signup"} style={styles.loginText}>Sign Up</Link>
       </Text>
+      
     </View>
   );
 }
