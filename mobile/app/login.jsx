@@ -1,3 +1,4 @@
+import { Link, router } from "expo-router";
 import React, { useState } from "react";
 import {
   View,
@@ -12,6 +13,7 @@ import { Link } from "expo-router";
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+<<<<<<< HEAD
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = () => {
@@ -26,6 +28,9 @@ export default function Login() {
     console.log("Google login pressed");
   };
 
+=======
+  
+>>>>>>> 746e686f13b860f82331306c2db4fabb78bb9bc0
   return (
     <View style={styles.screen}>
       {/* Top image section with muscular man */}
@@ -52,6 +57,7 @@ export default function Login() {
           />
         </View>
 
+<<<<<<< HEAD
         {/* Password */}
         <View style={styles.inputWrapper}>
           <TextInput
@@ -107,6 +113,50 @@ export default function Login() {
           </Link>
         </Text>
       </View>
+=======
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        placeholderTextColor="#8e8e8e"
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        placeholderTextColor="#8e8e8e"
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
+      />
+
+      {/* ========== ADD FORGOT PASSWORD LINK HERE ========== */}
+      <TouchableOpacity 
+        style={{ alignSelf: "flex-end", marginBottom: 20 }}
+        onPress={() => router.push("/forgotPassword")}
+      >
+        <Text style={{ 
+          color: "#4a2c1a", 
+          fontWeight: "600",
+          fontSize: 14,
+          textDecorationLine: "underline" 
+        }}>
+          Forgot Password?
+        </Text>
+      </TouchableOpacity>
+      {/* ========== END ADD ========== */}
+
+      <TouchableOpacity style={styles.button} onPress={() => {console.log("Pressed"); router.push('/dashboard');}}>
+        <Text style={styles.buttonText}>Log In</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.footer}>
+        Don't have an account? <Link href={"/signup"} style={styles.loginText}>Sign Up</Link>
+      </Text>
+      
+>>>>>>> 746e686f13b860f82331306c2db4fabb78bb9bc0
     </View>
   );
 }
