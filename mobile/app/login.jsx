@@ -1,48 +1,44 @@
-import { Link, router } from "expo-router";
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-} from "react-native";
-import { Link } from "expo-router";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from "react-native";
+import { Link, router } from "expo-router";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-<<<<<<< HEAD
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = () => {
     console.log("Login pressed", { email, password });
+    router.push("/dashboard");
   };
 
   const handleGuest = () => {
     console.log("Continue as guest");
+    router.push("/dashboard");
   };
 
   const handleGoogleLogin = () => {
     console.log("Google login pressed");
   };
 
-=======
-  
->>>>>>> 746e686f13b860f82331306c2db4fabb78bb9bc0
   return (
     <View style={styles.screen}>
-      {/* Top image section with muscular man */}
+      {/* Top Section with Branding */}
       <View style={styles.imageContainer}>
-        <Image
-          source={require("../assets/images/muscular_man.png")}
-          style={styles.image}
-          resizeMode="cover"
-        />
+        {/* FitTrack Branding */}
+        <View style={styles.brandingContainer}>
+          {/* Fitness Icon */}
+          <View style={styles.iconCircle}>
+            <Text style={styles.iconText}>💪</Text>
+          </View>
+          
+          {/* FitTrack Title */}
+          <Text style={styles.appTitle}>FitTrack</Text>
+          <Text style={styles.appSubtitle}>Your Fitness Journey Starts Here</Text>
+        </View>
       </View>
 
-      {/* Bottom content section */}
+      {/* Bottom Sheet */}
       <View style={styles.bottomSheet}>
         {/* Email */}
         <View style={styles.inputWrapper}>
@@ -57,7 +53,6 @@ export default function Login() {
           />
         </View>
 
-<<<<<<< HEAD
         {/* Password */}
         <View style={styles.inputWrapper}>
           <TextInput
@@ -79,8 +74,11 @@ export default function Login() {
         </View>
 
         {/* Forgot password */}
-        <TouchableOpacity style={styles.forgotWrapper}>
-          <Text style={styles.forgotText}>Forget password?</Text>
+        <TouchableOpacity
+          style={styles.forgotWrapper}
+          onPress={() => router.push("/forgotPassword")}
+        >
+          <Text style={styles.forgotText}>Forgot password?</Text>
         </TouchableOpacity>
 
         {/* Sign in */}
@@ -88,88 +86,71 @@ export default function Login() {
           <Text style={styles.signInText}>Sign in</Text>
         </TouchableOpacity>
 
-        {/* Continue with Google */}
-        <TouchableOpacity
-          style={styles.googleButton}
-          onPress={handleGoogleLogin}
-        >
+        {/* Google login */}
+        <TouchableOpacity style={styles.googleButton} onPress={handleGoogleLogin}>
           <View style={styles.googleIconCircle}>
             <Text style={styles.googleIconText}>G</Text>
           </View>
           <Text style={styles.googleButtonText}>Continue with Google</Text>
         </TouchableOpacity>
 
-        {/* Continue as guest */}
+        {/* Guest */}
         <TouchableOpacity style={styles.guestButton} onPress={handleGuest}>
           <Text style={styles.guestText}>Continue as guest</Text>
         </TouchableOpacity>
 
-        {/* Bottom link */}
+        {/* Footer */}
         <Text style={styles.footer}>
-          Don’t have an account?
-          <Link href="/signup" style={styles.footerLink}>
-            {" "}
-            Sign up
-          </Link>
+          Don't have an account?
+          <Link href="/signup" style={styles.footerLink}> Sign up</Link>
         </Text>
       </View>
-=======
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        placeholderTextColor="#8e8e8e"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        placeholderTextColor="#8e8e8e"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-
-      {/* ========== ADD FORGOT PASSWORD LINK HERE ========== */}
-      <TouchableOpacity 
-        style={{ alignSelf: "flex-end", marginBottom: 20 }}
-        onPress={() => router.push("/forgotPassword")}
-      >
-        <Text style={{ 
-          color: "#4a2c1a", 
-          fontWeight: "600",
-          fontSize: 14,
-          textDecorationLine: "underline" 
-        }}>
-          Forgot Password?
-        </Text>
-      </TouchableOpacity>
-      {/* ========== END ADD ========== */}
-
-      <TouchableOpacity style={styles.button} onPress={() => {console.log("Pressed"); router.push('/dashboard');}}>
-        <Text style={styles.buttonText}>Log In</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.footer}>
-        Don't have an account? <Link href={"/signup"} style={styles.loginText}>Sign Up</Link>
-      </Text>
-      
->>>>>>> 746e686f13b860f82331306c2db4fabb78bb9bc0
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // full screen coffee theme
   screen: {
     flex: 1,
-    backgroundColor: "#DCB083", // coffee latte
+    backgroundColor: "#DCB083",
   },
   imageContainer: {
     flex: 1.2,
-    justifyContent: "flex-end",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  brandingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "#FFD84D",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  iconText: {
+    fontSize: 50,
+  },
+  appTitle: {
+    fontSize: 42,
+    fontWeight: "800",
+    color: "#3b260f",
+    marginBottom: 8,
+    letterSpacing: 1,
+  },
+  appSubtitle: {
+    fontSize: 14,
+    color: "#4a2c1a",
+    fontWeight: "500",
   },
   image: {
     width: "100%",
@@ -188,11 +169,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 28,
     paddingHorizontal: 18,
-    paddingVertical: 4,
     marginBottom: 14,
   },
   input: {
-    color: "#000000",
+    color: "#000",
     fontSize: 15,
     paddingVertical: 10,
   },
@@ -204,11 +184,9 @@ const styles = StyleSheet.create({
   eyeText: {
     color: "#8e8e8e",
     fontSize: 13,
-    fontWeight: "500",
   },
   forgotWrapper: {
     alignSelf: "flex-end",
-    marginTop: 2,
     marginBottom: 16,
   },
   forgotText: {
@@ -216,7 +194,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   signInButton: {
-    backgroundColor: "#FFD84D", // warm yellow accent
+    backgroundColor: "#FFD84D",
     borderRadius: 28,
     paddingVertical: 12,
     alignItems: "center",
@@ -232,10 +210,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 28,
     paddingVertical: 12,
-    paddingHorizontal: 18,
     backgroundColor: "#FFFFFF",
-    marginBottom: 10,
     justifyContent: "center",
+    marginBottom: 10,
   },
   googleIconCircle: {
     width: 24,
@@ -248,12 +225,10 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   googleIconText: {
-    fontSize: 14,
-    fontWeight: "700",
     color: "#4285F4",
+    fontWeight: "700",
   },
   googleButtonText: {
-    fontSize: 15,
     fontWeight: "600",
     color: "#3b260f",
   },
@@ -262,12 +237,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: "#C4935D",
     alignItems: "center",
-    marginTop: 4,
   },
   guestText: {
-    fontSize: 15,
-    fontWeight: "600",
     color: "#FFFFFF",
+    fontWeight: "600",
   },
   footer: {
     marginTop: 16,
