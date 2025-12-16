@@ -8,8 +8,6 @@ const Settings = () => {
   // State for toggles
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [darkModeEnabled, setDarkModeEnabled] = useState(false)
-  const [autoSyncEnabled, setAutoSyncEnabled] = useState(true)
-  const [healthDataSharing, setHealthDataSharing] = useState(false)
   
   const handleLogout = () => {
     Alert.alert(
@@ -96,77 +94,6 @@ const Settings = () => {
             thumbColor={darkModeEnabled ? '#fff' : '#f4f3f4'}
           />
         </View>
-        
-        <View style={styles.settingItem}>
-          <View style={styles.settingLeft}>
-            <Text style={styles.settingText}>Auto Sync</Text>
-            <Text style={styles.settingDescription}>Sync data automatically</Text>
-          </View>
-          <Switch
-            value={autoSyncEnabled}
-            onValueChange={setAutoSyncEnabled}
-            trackColor={{ false: '#d9c9b8', true: '#4a2c1a' }}
-            thumbColor={autoSyncEnabled ? '#fff' : '#f4f3f4'}
-          />
-        </View>
-      </View>
-
-      {/* Data & Privacy Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Data & Privacy</Text>
-        
-        <View style={styles.settingItem}>
-          <View style={styles.settingLeft}>
-            <Text style={styles.settingText}>Share Health Data</Text>
-            <Text style={styles.settingDescription}>Share anonymous data for research</Text>
-          </View>
-          <Switch
-            value={healthDataSharing}
-            onValueChange={setHealthDataSharing}
-            trackColor={{ false: '#d9c9b8', true: '#4a2c1a' }}
-            thumbColor={healthDataSharing ? '#fff' : '#f4f3f4'}
-          />
-        </View>
-        
-        <TouchableOpacity style={styles.settingItem} onPress={() => Alert.alert("Export Data", "Your data export will be sent to your email")}>
-          <View style={styles.settingLeft}>
-            <Text style={styles.settingText}>Export Data</Text>
-          </View>
-          <Text style={styles.arrow}>›</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.settingItem} onPress={() => Alert.alert("Clear Cache", "App cache cleared successfully")}>
-          <View style={styles.settingLeft}>
-            <Text style={styles.settingText}>Clear Cache</Text>
-          </View>
-          <Text style={styles.arrow}>›</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* About Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>About</Text>
-        
-        <TouchableOpacity style={styles.settingItem} onPress={() => Alert.alert("Version", "FitTrack v1.0.0")}>
-          <View style={styles.settingLeft}>
-            <Text style={styles.settingText}>App Version</Text>
-          </View>
-          <Text style={styles.versionText}>1.0.0</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.settingItem} onPress={() => Alert.alert("Help & Support", "Contact support@fittrack.com")}>
-          <View style={styles.settingLeft}>
-            <Text style={styles.settingText}>Help & Support</Text>
-          </View>
-          <Text style={styles.arrow}>›</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.settingItem} onPress={() => Alert.alert("Rate App", "Would you like to rate FitTrack?")}>
-          <View style={styles.settingLeft}>
-            <Text style={styles.settingText}>Rate FitTrack</Text>
-          </View>
-          <Text style={styles.arrow}>›</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Action Buttons */}
@@ -183,22 +110,6 @@ const Settings = () => {
           onPress={handleDeleteAccount}
         >
           <Text style={styles.deleteButtonText}>Delete Account</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Bottom Navigation */}
-      <View style={styles.navcard}>
-        <TouchableOpacity onPress={() => router.push('/workout')}>
-          <Text style={styles.navText}>Workout</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.push('/dashboard')}>
-          <Text style={styles.navText}>Dashboard</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.push('/profile')}>
-          <Text style={styles.navText}>Profile</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.push('/settings')}>
-          <Text style={[styles.navText, styles.activeNavText]}>Settings</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -274,13 +185,9 @@ const styles = StyleSheet.create({
     color: '#d9c9b8',
     marginLeft: 10,
   },
-  versionText: {
-    fontSize: 14,
-    color: '#7a6659',
-    fontWeight: '500',
-  },
   actionSection: {
     marginBottom: 30,
+    marginTop: 10,
   },
   actionButton: {
     paddingVertical: 16,
@@ -307,24 +214,5 @@ const styles = StyleSheet.create({
     color: '#e74c3c',
     fontSize: 16,
     fontWeight: '600',
-  },
-  navcard: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: '#fff',
-    paddingVertical: 16,
-    borderRadius: 16,
-    marginBottom: 20,
-    elevation: 3,
-  },
-  navText: {
-    fontSize: 14,
-    color: '#7a6659',
-    fontWeight: '500',
-  },
-  activeNavText: {
-    color: '#4a2c1a',
-    fontWeight: '700',
-    textDecorationLine: 'underline',
   },
 })
