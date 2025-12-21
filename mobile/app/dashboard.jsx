@@ -100,7 +100,7 @@ export default function Dashboard() {
             <View style={[styles.summaryCard, { borderLeftColor: '#C4935D' }]}>
               <Text style={styles.cardIcon}>🔥</Text>
               <Text style={styles.cardValue}>576</Text>
-              <Text style={styles.cardName}>Calories Burned</Text>
+              <Text style={styles.cardName}>Burned</Text>
             </View>
           </View>
 
@@ -108,13 +108,13 @@ export default function Dashboard() {
             <View style={[styles.summaryCard, { borderLeftColor: '#DCB083' }]}>
               <Text style={styles.cardIcon}>🍎</Text>
               <Text style={styles.cardValue}>540</Text>
-              <Text style={styles.cardName}>Calories Intake</Text>
+              <Text style={styles.cardName}>Intake</Text>
             </View>
 
             <View style={[styles.summaryCard, { borderLeftColor: '#8b7968' }]}>
               <Text style={styles.cardIcon}>⏱️</Text>
               <Text style={styles.cardValue}>42</Text>
-              <Text style={styles.cardName}>Workout (min)</Text>
+              <Text style={styles.cardName}>Workout</Text>
             </View>
           </View>
         </View>

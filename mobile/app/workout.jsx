@@ -29,6 +29,14 @@ export default function WorkoutScreen() {
             Choose a workout and start training 💪
           </Text>
         </View>
+      <TouchableOpacity
+  style={styles.tutorialButton}
+  onPress={() => router.push("/tutorial")}
+>
+  <Text style={styles.tutorialButtonText}>
+    📺 Watch Workout Tutorials
+  </Text>
+</TouchableOpacity>
 
         {/* Horizontal scrollable categories section */}
         <ScrollView 
@@ -192,4 +200,18 @@ const styles = StyleSheet.create({
     fontSize: 16,               // Medium text size
     fontWeight: "600",          // Semi-bold font weight
   },
+  tutorialButton: {
+  backgroundColor: "#4a3b31",
+  paddingVertical: 14,
+  borderRadius: 24,
+  alignItems: "center",
+  marginBottom: 28,
+},
+
+tutorialButtonText: {
+  color: "#fff",
+  fontSize: 16,
+  fontWeight: "600",
+},
+
 });
