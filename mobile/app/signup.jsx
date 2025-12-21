@@ -1,106 +1,183 @@
-// Import React Native UI components for building the screen
-import {
-  View,              // Container for grouping components
-  Text,              // Component for displaying text
-  TextInput,         // Input field for text entry
-  TouchableOpacity,  // Makes components clickable with fade effect
-  Image,             // Displays images
-  StyleSheet,        // Creates and organizes component styles
-  KeyboardAvoidingView, // Prevents keyboard from covering input fields
-  Platform,          // Detects the device operating system (iOS/Android)
-  ScrollView,        // Creates a scrollable container
-  SafeAreaView,      // Ensures content stays within safe screen boundaries
-} from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, SafeAreaView, Alert, ActivityIndicator } from "react-native";
+import { Link, router } from "expo-router";
+import React, { useState } from "react";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "./firebaseConfig";
 
-// Import navigation components from Expo Router
-import { Link, router } from "expo-router"; // Link for clickable links, router for programmatic navigation
-
-// Define and export the SignupScreen component
 export default function SignupScreen() {
-  // Return the UI to be displayed
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const handleSignup = async () => {
+    if (!fullName.trim()) {
+      Alert.alert("Error", "Enter your full name");
+      return;
+    }
+
+    if (!email.trim()) {
+      Alert.alert("Error", "Enter your email");
+      return;
+    }
+
+    if (!password || !confirmPassword) {
+      Alert.alert("Error", "Enter password");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert("Error", "Passwords don't match");
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert("Error", "Password must be 6+ characters");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+      Alert.alert("Success", "Account created! Welcome to FitTrack");
+      router.push('/dashboard');
+    } catch (error) {
+      if (error.code === 'auth/email-already-in-use') {
+        Alert.alert("Error", "Email already registered");
+      } else if (error.code === 'auth/invalid-email') {
+        Alert.alert("Error", "Invalid email");
+      } else {
+        Alert.alert("Error", error.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    // SafeAreaView prevents content from being hidden by phone notches/bars
     <SafeAreaView style={styles.safeArea}>
-      // KeyboardAvoidingView adjusts layout when keyboard appears
-      <KeyboardAvoidingView
-        style={styles.container}  // Apply container styles
-        behavior={Platform.OS === "ios" ? "padding" : "height"} // iOS: add padding, Android: adjust height
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20} // Additional offset for Android
-      >
-        // ScrollView makes content scrollable if it exceeds screen height
-        <ScrollView
-          contentContainerStyle={styles.scrollContainer} // Styles for scroll content
-          keyboardShouldPersistTaps="handled" // Keyboard stays when tapping non-input areas
-        >
-          // Header section with logo and title
-          <View style={styles.header}>
-            // Person icon image
-            <Image
-              source={require("../assets/images/sign_up_person.png")} // Load image from assets
-              style={styles.personIcon} // Apply image styles
-            />
-
-            // Main app title
-            <Text style={styles.title}>FitTrack</Text>
-            // App subtitle/motto
-            <Text style={styles.subtitle}>Transform your fitness journey 💪</Text>
+      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          
+          <View style={styles.topSection}>
+            <View style={styles.logoCircle}>
+              <Text style={styles.logoIcon}>♡</Text>
+            </View>
+            <Text style={styles.appName}>FitTrack</Text>
+            <Text style={styles.tagline}>Transform Your Body, Track Your Journey</Text>
           </View>
 
-          // Container for all input fields
-          <View style={styles.inputsContainer}>
-            // First input field wrapper
-            <View style={styles.inputWrapper}>
-              // Full name input field
-              <TextInput
-                placeholder="Full Name"          // Hint text when empty
-                placeholderTextColor="#8b7768"   // Color of placeholder text
-                style={styles.input}             // Apply input field styles
-              />
+          <View style={styles.divider} />
+
+          <View style={styles.spacer} />
+
+          <View style={styles.formSection}>
+            <Text style={styles.welcomeTitle}>Sign Up</Text>
+            <Text style={styles.welcomeSubtitle}>Join thousands achieving their fitness goals</Text>
+
+            <View style={styles.inputGroup}>
+              <View style={styles.inputBox}>
+                <Text style={styles.inputIcon}>👤</Text>
+                <TextInput
+                  placeholder="Full Name"
+                  placeholderTextColor="#7d6f63"
+                  style={styles.input}
+                  value={fullName}
+                  onChangeText={setFullName}
+                  editable={!loading}
+                  selectionColor="#C4935D"
+                />
+              </View>
             </View>
 
-            // Second input field wrapper
-            <View style={styles.inputWrapper}>
-              // Email input field
-              <TextInput
-                placeholder="Email"               // Hint text
-                placeholderTextColor="#8b7768"    // Placeholder color
-                style={styles.input}              // Input styles
-                keyboardType="email-address"      // Shows email keyboard (@ and .)
-              />
+            <View style={styles.inputGroup}>
+              <View style={styles.inputBox}>
+                <Text style={styles.inputIcon}>✉️</Text>
+                <TextInput
+                  placeholder="Email Address"
+                  placeholderTextColor="#7d6f63"
+                  style={styles.input}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  editable={!loading}
+                  selectionColor="#C4935D"
+                />
+              </View>
             </View>
 
-            // Third input field wrapper
-            <View style={styles.inputWrapper}>
-              // Password input field
-              <TextInput
-                placeholder="Password"            // Hint text
-                secureTextEntry                   // Hides text with dots for password
-                placeholderTextColor="#8b7768"    // Placeholder color
-                style={styles.input}              // Input styles
-              />
+            <View style={styles.inputGroup}>
+              <View style={styles.inputBox}>
+                <Text style={styles.inputIcon}>🔒</Text>
+                <TextInput
+                  placeholder="Password"
+                  placeholderTextColor="#7d6f63"
+                  style={styles.input}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  editable={!loading}
+                  selectionColor="#C4935D"
+                />
+                <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword(!showPassword)}>
+                  <Text style={styles.eyeIcon}>{showPassword ? "👁️" : "👁️‍🗨️"}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <View style={styles.inputBox}>
+                <Text style={styles.inputIcon}>🔒</Text>
+                <TextInput
+                  placeholder="Confirm Password"
+                  placeholderTextColor="#7d6f63"
+                  style={styles.input}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                  editable={!loading}
+                  selectionColor="#C4935D"
+                />
+                <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                  <Text style={styles.eyeIcon}>{showConfirmPassword ? "👁️" : "👁️‍🗨️"}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
 
-          // Create Account button
           <TouchableOpacity 
-            style={styles.button}  // Apply button styles
-            onPress={() => router.push('/dashboard')} // Navigate to dashboard when pressed
+            style={[styles.signupBtn, loading && styles.btnDisabled]} 
+            onPress={handleSignup} 
+            disabled={loading}
           >
-            // Button text
-            <Text style={styles.buttonText}>Create Account</Text>
+            {loading ? (
+              <ActivityIndicator color="#1a1a1a" size="small" />
+            ) : (
+              <>
+                <Text style={styles.signupBtnText}>Sign Up</Text>
+                <Text style={styles.arrowIcon}>→</Text>
+              </>
+            )}
           </TouchableOpacity>
 
-          // Footer with login link
-          <View style={styles.footer}>
-            // Footer text
-            <Text style={styles.footerText}>Already a member? </Text>
-            // Clickable link to login screen
-            <Link href="/login" style={styles.footerLink}>
-              Log In
-            </Link>
+          <View style={styles.dividerOr}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.orText}>or</Text>
+            <View style={styles.dividerLine} />
           </View>
-          // Empty view for potential future content (currently just for spacing)
-          <View style={{ alignItems: 'center' }}>
+
+          <View style={styles.spacer} />
+
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Already have an account? </Text>
+            <Link href="/login">
+              <Text style={styles.loginLink}>Login</Text>
+            </Link>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -108,125 +185,160 @@ export default function SignupScreen() {
   );
 }
 
-// Create and define all styles for components
 const styles = StyleSheet.create({
-  // SafeAreaView styles - ensures content is visible on all devices
   safeArea: {
-    flex: 1,                    // Take up all available screen space
-    backgroundColor: "#f5efe6", // Light cream background color
+    flex: 1,
+    backgroundColor: "#1a1a1a",
   },
-  
-  // Main container styles
   container: {
-    flex: 1,                    // Take full available space
+    flex: 1,
   },
-  
-  // ScrollView content container styles
-  scrollContainer: {
-    flexGrow: 1,                // Allows content to expand
-    justifyContent: "center",   // Center content vertically
-    paddingHorizontal: 32,      // Left/right padding
-    paddingVertical: 40,        // Top/bottom padding
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
   },
-  
-  // Header section styles
-  header: {
-    alignItems: "center",       // Center children horizontally
-    marginBottom: 40,           // Space below header
+  topSection: {
+    alignItems: "center",
+    marginBottom: 20,
+    paddingTop: 15,
   },
-  
-  // Person icon image styles
-  personIcon: {
-    width: 300,                 // Image width: 300 pixels
-    height: 200,                // Image height: 200 pixels
-    marginBottom: 20,           // Space below image
-    marginRight: 40             // Right margin for centering adjustment
+  logoCircle: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+    borderWidth: 2.5,
+    borderColor: "#C4935D",
   },
-  
-  // Main title text styles
-  title: {
-    fontSize: 38,               // Extra large text size
-    fontWeight: "800",          // Extra bold font weight
-    color: "#4a3b31",           // Dark brown text color
-    marginBottom: 6,            // Space below title
+  logoIcon: {
+    fontSize: 50,
+    color: "#C4935D",
   },
-  
-  // Subtitle text styles
-  subtitle: {
-    fontSize: 16,               // Medium text size
-    color: "#7a6659",           // Medium brown text color
-    textAlign: "center",        // Center text horizontally
+  appName: {
+    fontSize: 36,
+    fontWeight: "800",
+    color: "#C4935D",
+    marginBottom: 6,
+    letterSpacing: 1,
   },
-  
-  // Input fields container styles
-  inputsContainer: {
-    marginBottom: 32,           // Space below inputs
+  tagline: {
+    fontSize: 13,
+    color: "#999999",
+    fontWeight: "400",
+    textAlign: "center",
   },
-  
-  // Individual input wrapper styles
-  inputWrapper: {
-    backgroundColor: "#efe6d8", // Light tan background
-    borderRadius: 20,           // Rounded corners
-    paddingHorizontal: 20,      // Left/right padding
-    paddingVertical: 14,        // Top/bottom padding
-    marginBottom: 18,           // Space below each input
-    shadowColor: "#000",        // Shadow color: black
-    shadowOffset: { 
-      width: 0,                 // No horizontal shadow offset
-      height: 2                 // 2 pixel vertical shadow offset
-    },
-    shadowOpacity: 0.2,         // 20% shadow opacity
-    shadowRadius: 3,            // 3 pixel shadow blur radius
-    elevation: 3,               // Android shadow depth
+  divider: {
+    height: 1,
+    backgroundColor: "#333333",
+    marginBottom: 0,
   },
-  
-  // Text input field styles
+  spacer: {
+    flex: 1,
+    minHeight: 15,
+  },
+  formSection: {
+    marginBottom: 20,
+  },
+  welcomeTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#ffffff",
+    marginBottom: 6,
+  },
+  welcomeSubtitle: {
+    fontSize: 13,
+    color: "#999999",
+    fontWeight: "400",
+    marginBottom: 24,
+  },
+  inputGroup: {
+    marginBottom: 14,
+  },
+  inputBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "transparent",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    borderWidth: 1.5,
+    borderColor: "#333333",
+    height: 54,
+  },
+  inputIcon: {
+    fontSize: 20,
+    marginRight: 10,
+  },
   input: {
-    color: "#4a3b31",           // Dark brown text color
-    fontSize: 16,               // Medium text size
+    flex: 1,
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "500",
+    paddingVertical: 0,
   },
-  
-  // Create Account button styles
-  button: {
-    backgroundColor: "#5b4334", // Dark brown background
-    paddingVertical: 16,        // Top/bottom padding
-    borderRadius: 26,           // Rounded corners
-    alignItems: "center",       // Center content horizontally
-    marginBottom: 24,           // Space below button
-    shadowColor: "#000",        // Button shadow color
-    shadowOffset: { 
-      width: 0,                 // No horizontal offset
-      height: 3                 // 3 pixel vertical offset
-    },
-    shadowOpacity: 0.3,         // 30% shadow opacity
-    shadowRadius: 4,            // 4 pixel shadow blur
-    elevation: 5,               // Android button shadow depth
+  eyeBtn: {
+    padding: 8,
   },
-  
-  // Button text styles
-  buttonText: {
-    color: "#fff",              // White text color
-    fontSize: 18,               // Medium-large text size
-    fontWeight: "600",          // Semi-bold font weight
+  eyeIcon: {
+    fontSize: 18,
   },
-  
-  // Footer container styles
+  signupBtn: {
+    backgroundColor: "#C4935D",
+    paddingVertical: 14,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  btnDisabled: {
+    opacity: 0.7,
+  },
+  signupBtnText: {
+    color: "#1a1a1a",
+    fontSize: 15,
+    fontWeight: "700",
+    marginRight: 8,
+  },
+  arrowIcon: {
+    color: "#1a1a1a",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  dividerOr: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#333333",
+  },
+  orText: {
+    marginHorizontal: 12,
+    fontSize: 12,
+    color: "#666666",
+    fontWeight: "500",
+  },
   footer: {
-    flexDirection: "row",       // Arrange children in a row
-    justifyContent: "center",   // Center children horizontally
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 20,
   },
-  
-  // Footer text styles
   footerText: {
-    color: "#7a6659",           // Medium brown text color
-    fontSize: 14,               // Small text size
+    fontSize: 13,
+    color: "#999999",
   },
-  
-  // Login link styles
-  footerLink: {
-    color: "#5b4334",           // Dark brown text color
-    fontSize: 14,               // Small text size
-    fontWeight: "600",          // Semi-bold font weight
-    textDecorationLine: "underline", // Underline text like a web link
+  loginLink: {
+    fontSize: 13,
+    color: "#C4935D",
+    fontWeight: "700",
+    textDecorationLine: "underline",
+    marginLeft: 4,
   },
 });

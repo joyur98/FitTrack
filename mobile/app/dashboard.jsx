@@ -1,210 +1,350 @@
-import React, {useState} from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
+import { auth } from './firebaseConfig';
+import { signOut } from 'firebase/auth';
 
-
-
-export default function App() {
+export default function Dashboard() {
   const router = useRouter();
   const [profileImage, setProfileImage] = useState(null);
+  const [userName, setUserName] = useState('User');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (user) {
+      const name = user.email.split('@')[0];
+      setUserName(name.charAt(0).toUpperCase() + name.slice(1));
+    }
+    setLoading(false);
+  }, []);
+
   const pickProfileImage = async () => {
-  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      alert('Permission required');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+    if (!result.canceled) {
+      setProfileImage(result.assets[0].uri);
+    }
+  };
 
-  if (!permission.granted) {
-    alert('Permission is required to change profile picture');
-    return;
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.replace('/login');
+    } catch (error) {
+      alert('Logout error');
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#C4935D" />
+        </View>
+      </SafeAreaView>
+    );
   }
-
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsEditing: true,
-    aspect: [1, 1],
-    quality: 1,
-  });
-
-  if (!result.canceled) {
-    setProfileImage(result.assets[0].uri);
-  }
-};
 
   return (
-    <ScrollView style={styles.container}>
-      {/*Account Details*/}
-      <View style={styles.accountDetail}>
-                <TouchableOpacity onPress={pickProfileImage}>
-  <Image
-    source={{
-      uri: profileImage ? profileImage : 'https://i.pinimg.com/474x/08/35/0c/08350cafa4fabb8a6a1be2d9f18f2d88.jpg',
-    }}
-    style={styles.profileImage}
-  />
-</TouchableOpacity>
-       <Text style={styles.name}>Your Name</Text>
-       <Text style={{fontSize: 15, color: "white", left: 125, bottom: 30}}>Hello, User!</Text>
-       <Text style={{fontSize: 15, color: "white", left: 115, bottom: 30}}>Welcome to Fit Track!</Text>
-       <Text style={{fontSize: 15, color: "white", left: 100, bottom: 30}}>Where you can track your progress!</Text>
-      </View>
-      
-      {/* Header */}
-      <Text style={styles.title}>FitTrack</Text>
-      <Text style={styles.subtitle}>Your daily fitness summary</Text>
-
-      {/* Cards */}
-      <View style={styles.row}>
-        <View style={styles.card}>
-          <Text style={styles.value}>8,420</Text>
-          <Text style={styles.label}>Steps</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        
+        <View style={styles.headerContainer}>
+          <Text style={styles.appTitle}>FitTrack</Text>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Text style={styles.logoutButtonText}>Logout</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.value}>540</Text>
-          <Text style={styles.label}>Calories Intake</Text>
+        <View style={styles.profileSection}>
+          <TouchableOpacity onPress={pickProfileImage}>
+            <Image
+              source={{
+                uri: profileImage || 'https://i.pinimg.com/474x/08/35/0c/08350cafa4fabb8a6a1be2d9f18f2d88.jpg',
+              }}
+              style={styles.profilePic}
+            />
+            <View style={styles.cameraOverlay}>
+              <Text style={styles.cameraEmoji}>📷</Text>
+            </View>
+          </TouchableOpacity>
+          
+          <View style={styles.userInfo}>
+            <Text style={styles.greeting}>Hello, {userName}!</Text>
+            <Text style={styles.subtitle}>Welcome back to FitTrack</Text>
+            <Text style={styles.motivational}>Keep pushing your limits 💪</Text>
+          </View>
         </View>
-      </View>
 
-      <View style={styles.row}>
-        <View style={styles.card}>
-          <Text style={styles.value}>576</Text>
-          <Text style={styles.label}>Calories Burned</Text>
+        <View style={styles.summaryContainer}>
+          <Text style={styles.summaryTitle}>Your daily fitness summary</Text>
+          
+          <View style={styles.cardsRow}>
+            <View style={[styles.summaryCard, { borderLeftColor: '#5b4334' }]}>
+              <Text style={styles.cardIcon}>👟</Text>
+              <Text style={styles.cardValue}>8,420</Text>
+              <Text style={styles.cardName}>Steps</Text>
+            </View>
+
+            <View style={[styles.summaryCard, { borderLeftColor: '#C4935D' }]}>
+              <Text style={styles.cardIcon}>🔥</Text>
+              <Text style={styles.cardValue}>576</Text>
+              <Text style={styles.cardName}>Calories Burned</Text>
+            </View>
+          </View>
+
+          <View style={styles.cardsRow}>
+            <View style={[styles.summaryCard, { borderLeftColor: '#DCB083' }]}>
+              <Text style={styles.cardIcon}>🍎</Text>
+              <Text style={styles.cardValue}>540</Text>
+              <Text style={styles.cardName}>Calories Intake</Text>
+            </View>
+
+            <View style={[styles.summaryCard, { borderLeftColor: '#8b7968' }]}>
+              <Text style={styles.cardIcon}>⏱️</Text>
+              <Text style={styles.cardValue}>42</Text>
+              <Text style={styles.cardName}>Workout (min)</Text>
+            </View>
+          </View>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.value}>42</Text>
-          <Text style={styles.label}>Workout (min)</Text>
+        <View style={styles.goalSection}>
+          <Text style={styles.goalTitle}>Weekly Goal</Text>
+          <Text style={styles.goalDescText}>You've completed 72% of your weekly goal 🎯</Text>
+          
+          <View style={styles.progressBar}>
+            <View style={styles.progressFilled} />
+          </View>
         </View>
-      </View>
 
-      {/* Weekly Goal */}
-      <View style={styles.goalCard}>
-        <Text style={styles.goalTitle}>Weekly Goal</Text>
-        <Text style={styles.goalText}>
-          You’ve completed 72% of your weekly goal 🎯
-        </Text>
+        <View style={styles.bottomNav}>
+          <TouchableOpacity style={styles.navButton} onPress={() => router.push('/workout')}>
+            <Text style={styles.navEmoji}>🏋️</Text>
+            <Text style={styles.navText}>Workout</Text>
+          </TouchableOpacity>
 
+          <TouchableOpacity style={[styles.navButton, styles.navButtonActive]} onPress={() => router.push('/dashboard')}>
+            <Text style={styles.navEmoji}>🏠</Text>
+            <Text style={[styles.navText, styles.navTextActive]}>Home</Text>
+          </TouchableOpacity>
 
+          <TouchableOpacity style={styles.navButton} onPress={() => router.push('/profile')}>
+            <Text style={styles.navEmoji}>📊</Text>
+            <Text style={styles.navText}>Profile</Text>
+          </TouchableOpacity>
 
-
-      </View>
-
-        <View style={styles.navcard}>
-        <TouchableOpacity onPress={() => router.push('/workout')}>
-        <Image style={styles.navicon}  source={require('../assets/images/dumbbell.png')}></Image>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.push('/dashboard')}>
-        <Image style={styles.navicon}  source={require('../assets/images/home.png')}></Image>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.push('/profile')}>
-        <Image style={styles.navicon}  source={require('../assets/images/profileicon.jpg')}></Image>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.push('/settings')}>
-        <Image style={styles.navicon}  source={require('../assets/images/settings.png')}></Image>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+          <TouchableOpacity style={styles.navButton} onPress={() => router.push('/settings')}>
+            <Text style={styles.navEmoji}>⚙️</Text>
+            <Text style={styles.navText}>Settings</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f8f5f0',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#f2f2f2',
     padding: 16,
+    paddingBottom: 100,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  subtitle: {
-    color: '#666',
-    marginBottom: 20,
-  },
-  row: {
+  headerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  card: {
-    backgroundColor: '#fff',
-    width: '48%',
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 16,
     alignItems: 'center',
-    elevation: 3,
+    marginBottom: 24,
   },
-  value: {
-    fontSize: 22,
-    fontWeight: 'bold',
+  appTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#4a3b31',
+    letterSpacing: 1,
   },
-  label: {
-    color: '#777',
-    marginTop: 4,
+  logoutButton: {
+    backgroundColor: '#C4935D',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
-  goalCard: {
+  logoutButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  profileSection: {
+    backgroundColor: '#5b4334',
+    borderRadius: 14,
+    padding: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+    elevation: 4,
+  },
+  profilePic: {
+    width: 75,
+    height: 75,
+    borderRadius: 37,
+    marginRight: 14,
+    borderWidth: 3,
+    borderColor: '#C4935D',
+  },
+  cameraOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 14,
+    backgroundColor: '#C4935D',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#5b4334',
+  },
+  cameraEmoji: {
+    fontSize: 14,
+  },
+  userInfo: {
+    flex: 1,
+  },
+  greeting: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 3,
+  },
+  subtitle: {
+    fontSize: 12,
+    color: '#d4c4a8',
+    marginBottom: 2,
+  },
+  motivational: {
+    fontSize: 11,
+    color: '#b8a99f',
+  },
+  summaryContainer: {
+    marginBottom: 24,
+  },
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#4a3b31',
+    marginBottom: 14,
+  },
+  cardsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  summaryCard: {
+    flex: 1,
     backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 16,
-    marginTop: 10,
-    elevation: 3,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    marginHorizontal: 5,
+    borderLeftWidth: 4,
+    elevation: 2,
+  },
+  cardIcon: {
+    fontSize: 26,
+    marginBottom: 5,
+  },
+  cardValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#4a3b31',
+  },
+  cardName: {
+    fontSize: 11,
+    color: '#8b7968',
+    marginTop: 3,
+    textAlign: 'center',
+  },
+  goalSection: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 18,
+    marginBottom: 24,
+    elevation: 2,
   },
   goalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 6,
+    fontWeight: '700',
+    color: '#4a3b31',
+    marginBottom: 8,
   },
-  goalText: {
-    color: '#555',
+  goalDescText: {
+    fontSize: 14,
+    color: '#8b7968',
+    marginBottom: 12,
   },
-  accountDetail: {
-    height: 150,
-    width: 360,
-    backgroundColor:'#4a2c1a',
-    borderRadius:10,
-    elevation: 5,
-    marginBottom: 20,
+  progressBar: {
+    height: 8,
+    backgroundColor: '#e6ddd0',
+    borderRadius: 4,
+    overflow: 'hidden',
   },
-  name: {
-    alignItems:'center',
-    color: '#fff',
-    fontSize: 30,
-    paddingLeft: 110,
-    top: 15,
-    fontweight: 'bold',
-    fontStyle: 'italic',
+  progressFilled: {
+    height: '100%',
+    width: '72%',
+    backgroundColor: '#C4935D',
+  },
+  bottomNav: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: '#fff',
+    paddingVertical: 10,
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
     position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    elevation: 8,
   },
-  profileImage: {
-  top: 25,
-  left: 15,
-  width: 100,
-  height: 100,
-  borderRadius: 50,
-  marginRight: 15,
-  backgroundColor: '#ccc',
-  
-},
-
-
-navicon: {
-  width: '50',
-  height: '50',
-  borderColor: '#000',
-  borderWidth: 2,
-  borderRadius: 10,
-  marginHorizontal: 20,
-  right: 10,
-},
-
-navcard: {
-  alignItems: 'center',
-  justifyContent: 'center',
-  flexDirection: 'row',
-  width: '125%',
-  height: 60,
-  backgroundColor: '#fff',
-  elevation: 5,
-  top: 130,
-  borderRadius: 10,
-  right: 30,
-} 
+  navButton: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  navButtonActive: {
+    backgroundColor: '#f8f5f0',
+    borderRadius: 8,
+  },
+  navEmoji: {
+    fontSize: 22,
+    marginBottom: 3,
+  },
+  navText: {
+    fontSize: 10,
+    color: '#8b7968',
+    fontWeight: '500',
+  },
+  navTextActive: {
+    color: '#C4935D',
+    fontWeight: '600',
+  },
 });

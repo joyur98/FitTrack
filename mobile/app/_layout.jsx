@@ -5,17 +5,17 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <Stack
-        screenOptions={{
-          headerShown: true, // show the header
+        screenOptions={({ route }) => ({
+          headerShown: route.name === 'login' || route.name === 'signup', // Show header only on login/signup
           headerStyle: {
-            backgroundColor: "#DCB083", // header background
+            backgroundColor: "#DCB083",
           },
-          headerTintColor: "#4a2c1a", // title + back button color
+          headerTintColor: "#4a2c1a",
           headerTitleStyle: {
             fontWeight: "bold",
           },
           headerTitle: "",
-        }}
+        })}
       />
     </SafeAreaProvider>
   );
