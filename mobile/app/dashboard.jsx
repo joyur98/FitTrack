@@ -100,6 +100,13 @@ export default function App() {
         <TouchableOpacity onPress={() => router.push('/settings')}>
         <Image style={styles.navicon}  source={require('../assets/images/settings.png')}></Image>
         </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push('/tutorial')}>
+  <Image
+    style={styles.navicon}
+    source={require('../assets/images/yt.png')}
+  />
+</TouchableOpacity>
+
       </View>
     </ScrollView>
   );
