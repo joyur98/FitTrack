@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  SafeAreaView,
+  ActivityIndicator,
+} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { auth } from './firebaseConfig';
@@ -41,7 +50,7 @@ export default function Dashboard() {
     try {
       await signOut(auth);
       router.replace('/login');
-    } catch (error) {
+    } catch {
       alert('Logout error');
     }
   };
@@ -60,6 +69,7 @@ export default function Dashboard() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         
+        {/* HEADER */}
         <View style={styles.headerContainer}>
           <Text style={styles.appTitle}>FitTrack</Text>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
@@ -67,11 +77,14 @@ export default function Dashboard() {
           </TouchableOpacity>
         </View>
 
+        {/* PROFILE */}
         <View style={styles.profileSection}>
           <TouchableOpacity onPress={pickProfileImage}>
             <Image
               source={{
-                uri: profileImage || 'https://i.pinimg.com/474x/08/35/0c/08350cafa4fabb8a6a1be2d9f18f2d88.jpg',
+                uri:
+                  profileImage ||
+                  'https://i.pinimg.com/474x/08/35/0c/08350cafa4fabb8a6a1be2d9f18f2d88.jpg',
               }}
               style={styles.profilePic}
             />
@@ -79,7 +92,7 @@ export default function Dashboard() {
               <Text style={styles.cameraEmoji}>📷</Text>
             </View>
           </TouchableOpacity>
-          
+
           <View style={styles.userInfo}>
             <Text style={styles.greeting}>Hello, {userName}!</Text>
             <Text style={styles.subtitle}>Welcome back to FitTrack</Text>
@@ -87,9 +100,10 @@ export default function Dashboard() {
           </View>
         </View>
 
+        {/* SUMMARY */}
         <View style={styles.summaryContainer}>
           <Text style={styles.summaryTitle}>Your daily fitness summary</Text>
-          
+
           <View style={styles.cardsRow}>
             <View style={[styles.summaryCard, { borderLeftColor: '#5b4334' }]}>
               <Text style={styles.cardIcon}>👟</Text>
@@ -105,11 +119,16 @@ export default function Dashboard() {
           </View>
 
           <View style={styles.cardsRow}>
-            <View style={[styles.summaryCard, { borderLeftColor: '#DCB083' }]}>
+            {/* ✅ CLICKABLE INTAKE CARD */}
+            <TouchableOpacity
+              style={[styles.summaryCard, { borderLeftColor: '#DCB083' }]}
+              onPress={() => router.push('/calories')}
+              activeOpacity={0.85}
+            >
               <Text style={styles.cardIcon}>🍎</Text>
               <Text style={styles.cardValue}>540</Text>
               <Text style={styles.cardName}>Intake</Text>
-            </View>
+            </TouchableOpacity>
 
             <View style={[styles.summaryCard, { borderLeftColor: '#8b7968' }]}>
               <Text style={styles.cardIcon}>⏱️</Text>
@@ -119,32 +138,48 @@ export default function Dashboard() {
           </View>
         </View>
 
+        {/* GOAL */}
         <View style={styles.goalSection}>
           <Text style={styles.goalTitle}>Weekly Goal</Text>
-          <Text style={styles.goalDescText}>You've completed 72% of your weekly goal 🎯</Text>
-          
+          <Text style={styles.goalDescText}>
+            You've completed 72% of your weekly goal 🎯
+          </Text>
+
           <View style={styles.progressBar}>
             <View style={styles.progressFilled} />
           </View>
         </View>
 
+        {/* BOTTOM NAV */}
         <View style={styles.bottomNav}>
-          <TouchableOpacity style={styles.navButton} onPress={() => router.push('/workout')}>
+          <TouchableOpacity
+            style={styles.navButton}
+            onPress={() => router.push('/workout')}
+          >
             <Text style={styles.navEmoji}>🏋️</Text>
             <Text style={styles.navText}>Workout</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.navButton, styles.navButtonActive]} onPress={() => router.push('/dashboard')}>
+          <TouchableOpacity
+            style={[styles.navButton, styles.navButtonActive]}
+            onPress={() => router.push('/dashboard')}
+          >
             <Text style={styles.navEmoji}>🏠</Text>
             <Text style={[styles.navText, styles.navTextActive]}>Home</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.navButton} onPress={() => router.push('/profile')}>
+          <TouchableOpacity
+            style={styles.navButton}
+            onPress={() => router.push('/profile')}
+          >
             <Text style={styles.navEmoji}>📊</Text>
             <Text style={styles.navText}>Profile</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.navButton} onPress={() => router.push('/settings')}>
+          <TouchableOpacity
+            style={styles.navButton}
+            onPress={() => router.push('/settings')}
+          >
             <Text style={styles.navEmoji}>⚙️</Text>
             <Text style={styles.navText}>Settings</Text>
           </TouchableOpacity>
@@ -153,6 +188,7 @@ export default function Dashboard() {
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   safeArea: {
