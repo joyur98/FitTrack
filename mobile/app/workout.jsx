@@ -31,7 +31,7 @@ export default function WorkoutScreen() {
         </View>
       <TouchableOpacity
   style={styles.tutorialButton}
-  onPress={() => router.push("/tutorial")}
+  onPress={() => router.push("/tutorials")}
 >
   <Text style={styles.tutorialButtonText}>
     📺 Watch Workout Tutorials
