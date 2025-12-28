@@ -13,21 +13,59 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { auth } from './firebaseConfig';
 import { signOut } from 'firebase/auth';
+import { getFirestore, collection, query, where, onSnapshot } from 'firebase/firestore';
 
 export default function Dashboard() {
   const router = useRouter();
+  const db = getFirestore();
+
   const [profileImage, setProfileImage] = useState(null);
   const [userName, setUserName] = useState('User');
   const [loading, setLoading] = useState(true);
+  const [totalCalories, setTotalCalories] = useState(0);
 
+  // Fetch user info and today's total calories
   useEffect(() => {
-    const user = auth.currentUser;
-    if (user) {
-      const name = user.email.split('@')[0];
-      setUserName(name.charAt(0).toUpperCase() + name.slice(1));
-    }
+  const user = auth.currentUser;
+  if (!user) {
     setLoading(false);
-  }, []);
+    return;
+  }
+
+  const name = user.email.split('@')[0];
+  setUserName(name.charAt(0).toUpperCase() + name.slice(1));
+
+  const q = query(
+    collection(db, 'calorie_intake'),
+    where('userID', '==', user.uid)
+  );
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    let total = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // start of today
+
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+
+      // Safety check
+      if (data.calorie && data.date && data.date.toDate) {
+        const entryDate = data.date.toDate();
+        if (entryDate >= today) {
+          total += data.calorie;
+        }
+      }
+    });
+
+    setTotalCalories(total);
+    setLoading(false); // stop loading after data is processed
+  }, (error) => {
+    console.error("Firestore snapshot error:", error);
+    setLoading(false);
+  });
+
+  return () => unsubscribe();
+}, []);
 
   const pickProfileImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -68,7 +106,6 @@ export default function Dashboard() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        
         {/* HEADER */}
         <View style={styles.headerContainer}>
           <Text style={styles.appTitle}>FitTrack</Text>
@@ -126,7 +163,7 @@ export default function Dashboard() {
               activeOpacity={0.85}
             >
               <Text style={styles.cardIcon}>🍎</Text>
-              <Text style={styles.cardValue}>540</Text>
+              <Text style={styles.cardValue}>{totalCalories}</Text>
               <Text style={styles.cardName}>Intake</Text>
             </TouchableOpacity>
 
@@ -188,7 +225,6 @@ export default function Dashboard() {
     </SafeAreaView>
   );
 }
-
 
 const styles = StyleSheet.create({
   safeArea: {

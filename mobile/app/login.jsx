@@ -1,5 +1,15 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, ScrollView, SafeAreaView } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  ScrollView,
+  SafeAreaView,
+} from "react-native";
 import { Link, router } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "./firebaseConfig";
@@ -20,17 +30,28 @@ export default function Login() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      Alert.alert("Success", "Welcome back!");
-      router.push("/dashboard");
+
+      Alert.alert("Success", "Welcome back to FitTrack!");
+      router.replace("/dashboard"); // ✅ IMPORTANT
     } catch (error) {
-      if (error.code === 'auth/user-not-found') {
-        Alert.alert("Error", "No account with this email");
-      } else if (error.code === 'auth/wrong-password') {
-        Alert.alert("Error", "Wrong password");
-      } else if (error.code === 'auth/invalid-email') {
-        Alert.alert("Error", "Invalid email");
-      } else {
-        Alert.alert("Error", "Login failed");
+      switch (error.code) {
+        case "auth/user-not-found":
+          Alert.alert("Error", "No account found with this email");
+          break;
+        case "auth/wrong-password":
+          Alert.alert("Error", "Incorrect password");
+          break;
+        case "auth/invalid-email":
+          Alert.alert("Error", "Invalid email format");
+          break;
+        case "auth/too-many-requests":
+          Alert.alert(
+            "Error",
+            "Too many attempts. Please try again later."
+          );
+          break;
+        default:
+          Alert.alert("Error", "Login failed. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -39,8 +60,12 @@ export default function Login() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Header */}
         <View style={styles.topSection}>
           <View style={styles.logoCircle}>
             <Text style={styles.logoIcon}>♡</Text>
@@ -51,12 +76,14 @@ export default function Login() {
 
         <View style={styles.divider} />
 
-        <View style={styles.spacer} />
-
+        {/* Form */}
         <View style={styles.formSection}>
           <Text style={styles.welcomeTitle}>Login</Text>
-          <Text style={styles.welcomeSubtitle}>Continue your fitness journey</Text>
+          <Text style={styles.welcomeSubtitle}>
+            Continue your fitness journey
+          </Text>
 
+          {/* Email */}
           <View style={styles.inputGroup}>
             <View style={styles.inputBox}>
               <Text style={styles.inputIcon}>✉️</Text>
@@ -74,6 +101,7 @@ export default function Login() {
             </View>
           </View>
 
+          {/* Password */}
           <View style={styles.inputGroup}>
             <View style={styles.inputBox}>
               <Text style={styles.inputIcon}>🔒</Text>
@@ -87,25 +115,32 @@ export default function Login() {
                 editable={!loading}
                 selectionColor="#C4935D"
               />
-              <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword(!showPassword)}>
-                <Text style={styles.eyeIcon}>{showPassword ? "👁️" : "👁️‍🗨️"}</Text>
+              <TouchableOpacity
+                style={styles.eyeBtn}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <Text style={styles.eyeIcon}>
+                  {showPassword ? "👁️" : "👁️‍🗨️"}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          <TouchableOpacity style={styles.forgotContainer}>
+          {/* Forgot Password */}
+          <View style={styles.forgotContainer}>
             <Link href="/forgotPassword">
               <Text style={styles.forgotLink}>Forgot Password?</Text>
             </Link>
-          </TouchableOpacity>
+          </View>
 
-          <TouchableOpacity 
-            style={[styles.loginBtn, loading && styles.btnDisabled]} 
-            onPress={handleLogin} 
+          {/* Login Button */}
+          <TouchableOpacity
+            style={[styles.loginBtn, loading && styles.btnDisabled]}
+            onPress={handleLogin}
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#1a1a1a" size="small" />
+              <ActivityIndicator color="#1a1a1a" />
             ) : (
               <>
                 <Text style={styles.loginBtnText}>Login</Text>
@@ -113,20 +148,13 @@ export default function Login() {
               </>
             )}
           </TouchableOpacity>
-
-          <View style={styles.dividerOr}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.orText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
         </View>
 
-        <View style={styles.spacer} />
-
+        {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Don't have an account? </Text>
+          <Text style={styles.footerText}>Don't have an account?</Text>
           <Link href="/signup">
-            <Text style={styles.signupLink}>Sign Up</Text>
+            <Text style={styles.signupLink}> Sign Up</Text>
           </Link>
         </View>
       </ScrollView>
@@ -147,18 +175,16 @@ const styles = StyleSheet.create({
   topSection: {
     alignItems: "center",
     marginBottom: 20,
-    paddingTop: 15,
   },
   logoCircle: {
     width: 90,
     height: 90,
     borderRadius: 45,
-    backgroundColor: "transparent",
+    borderWidth: 2.5,
+    borderColor: "#C4935D",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 24,
-    borderWidth: 2.5,
-    borderColor: "#C4935D",
   },
   logoIcon: {
     fontSize: 50,
@@ -169,35 +195,27 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#C4935D",
     marginBottom: 6,
-    letterSpacing: 1,
   },
   tagline: {
     fontSize: 14,
     color: "#999999",
-    fontWeight: "400",
   },
   divider: {
     height: 1,
     backgroundColor: "#333333",
-    marginBottom: 0,
-  },
-  spacer: {
-    flex: 1,
-    minHeight: 20,
+    marginVertical: 20,
   },
   formSection: {
-    marginBottom: 20,
+    marginBottom: 30,
   },
   welcomeTitle: {
     fontSize: 28,
     fontWeight: "700",
     color: "#ffffff",
-    marginBottom: 6,
   },
   welcomeSubtitle: {
     fontSize: 14,
     color: "#999999",
-    fontWeight: "400",
     marginBottom: 26,
   },
   inputGroup: {
@@ -206,7 +224,6 @@ const styles = StyleSheet.create({
   inputBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "transparent",
     borderRadius: 12,
     paddingHorizontal: 12,
     borderWidth: 1.5,
@@ -221,8 +238,6 @@ const styles = StyleSheet.create({
     flex: 1,
     color: "#ffffff",
     fontSize: 15,
-    fontWeight: "500",
-    paddingVertical: 0,
   },
   eyeBtn: {
     padding: 8,
@@ -247,7 +262,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 20,
   },
   btnDisabled: {
     opacity: 0.7,
@@ -259,30 +273,12 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   arrowIcon: {
-    color: "#1a1a1a",
     fontSize: 18,
     fontWeight: "700",
-  },
-  dividerOr: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#333333",
-  },
-  orText: {
-    marginHorizontal: 12,
-    fontSize: 12,
-    color: "#666666",
-    fontWeight: "500",
   },
   footer: {
     flexDirection: "row",
     justifyContent: "center",
-    alignItems: "center",
     paddingVertical: 20,
   },
   footerText: {
@@ -294,6 +290,5 @@ const styles = StyleSheet.create({
     color: "#C4935D",
     fontWeight: "700",
     textDecorationLine: "underline",
-    marginLeft: 4,
   },
 });

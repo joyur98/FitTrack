@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,27 +7,89 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { auth } from "./firebaseConfig";
+import { db } from "./firebaseConfig";
+import {
+  collection,
+  addDoc,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  Timestamp,
+} from "firebase/firestore";
 
 export default function CaloriesScreen() {
   const router = useRouter();
+
   const [food, setFood] = useState("");
   const [calories, setCalories] = useState("");
   const [entries, setEntries] = useState([]);
   const [total, setTotal] = useState(0);
 
-  const addCalories = () => {
-    if (!calories || isNaN(calories) || !food) return;
+  const user = auth.currentUser;
 
-    const value = parseInt(calories);
-    setEntries([
-      { food, value, time: new Date().toLocaleTimeString() },
-      ...entries,
-    ]);
-    setTotal(total + value);
-    setCalories("");
-    setFood("");
+  useEffect(() => {
+  if (!user) return;
+
+  const q = query(
+    collection(db, "calorie_intake"),
+    where("userID", "==", user.uid)
+  );
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    let list = [];
+
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      list.push(data);
+    });
+
+    // Filter only today's entries
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayEntries = list.filter(item => {
+      const itemDate = item.date.toDate();
+      return itemDate >= today;
+    });
+
+    // Sort by date descending
+    todayEntries.sort((a, b) => b.date.toDate() - a.date.toDate());
+
+    // Calculate total
+    const sum = todayEntries.reduce((acc, item) => acc + item.calorie, 0);
+
+    setEntries(todayEntries);
+    setTotal(sum);
+  });
+
+  return () => unsubscribe();
+}, []);
+
+  // ➕ Add calories to Firestore
+  const addCalories = async () => {
+    if (!food.trim() || !calories || isNaN(calories)) {
+      Alert.alert("Error", "Enter valid food and calories");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "calorie_intake"), {
+        food: food.trim(),
+        calorie: Number(calories),
+        date: Timestamp.now(),
+        userID: user.uid,
+      });
+
+      setFood("");
+      setCalories("");
+    } catch (error) {
+      Alert.alert("Error", "Failed to add calories");
+    }
   };
 
   return (
@@ -42,20 +104,20 @@ export default function CaloriesScreen() {
           <Text style={styles.title}>Calorie Intake</Text>
         </View>
 
-        {/* Total Card */}
+        {/* Total */}
         <View style={styles.totalCard}>
           <Text style={styles.totalLabel}>Today’s Intake</Text>
           <Text style={styles.totalValue}>{total} kcal</Text>
         </View>
 
-        {/* Input Section */}
+        {/* Input */}
         <View style={styles.inputCard}>
           <Text style={styles.inputTitle}>Add Calories</Text>
 
           <TextInput
             value={food}
             onChangeText={setFood}
-            placeholder="Enter food name"
+            placeholder="Food name"
             placeholderTextColor="#8b7968"
             style={[styles.input, { marginBottom: 10 }]}
           />
@@ -64,7 +126,7 @@ export default function CaloriesScreen() {
             <TextInput
               value={calories}
               onChangeText={setCalories}
-              placeholder="Enter calories"
+              placeholder="Calories"
               keyboardType="numeric"
               placeholderTextColor="#8b7968"
               style={styles.input}
@@ -84,12 +146,12 @@ export default function CaloriesScreen() {
           ) : (
             entries.map((item, index) => (
               <View key={index} style={styles.entryRow}>
-                <View>
-                  <Text style={styles.entryValue}>
-                    {item.food} - {item.value} kcal
-                  </Text>
-                  <Text style={styles.entryTime}>{item.time}</Text>
-                </View>
+                <Text style={styles.entryValue}>
+                  {item.food} - {item.calorie} kcal
+                </Text>
+                <Text style={styles.entryTime}>
+                  {item.date.toDate().toLocaleTimeString()}
+                </Text>
               </View>
             ))
           )}
@@ -98,6 +160,7 @@ export default function CaloriesScreen() {
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -132,7 +195,6 @@ const styles = StyleSheet.create({
   totalLabel: {
     fontSize: 14,
     color: "#d4c4a8",
-    marginBottom: 4,
   },
   totalValue: {
     fontSize: 32,
@@ -144,7 +206,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 18,
     marginBottom: 24,
-    elevation: 2,
   },
   inputTitle: {
     fontSize: 16,
@@ -193,13 +254,10 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   entryRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
     backgroundColor: "#fff",
     padding: 14,
     borderRadius: 10,
     marginBottom: 8,
-    elevation: 1,
   },
   entryValue: {
     fontSize: 14,

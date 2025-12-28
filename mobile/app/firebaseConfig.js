@@ -1,14 +1,17 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCNJ0sFwWA_7gbbbKuBtWJhX8BlGApVp7I",
   authDomain: "fittrack-3cb4c.firebaseapp.com",
   projectId: "fittrack-3cb4c",
-  storageBucket: "fittrack-3cb4c.firebasestorage.app",
+  storageBucket: "fittrack-3cb4c.appspot.com", // ✅ FIXED
   messagingSenderId: "421615150296",
-  appId: "1:421615150296:web:c4a15e108996ee62c5a3ad"
+  appId: "1:421615150296:web:c4a15e108996ee62c5a3ad",
 };
 
 const app = initializeApp(firebaseConfig);
+
 export const auth = getAuth(app);
+export const db = getFirestore(app); // ✅ REQUIRED

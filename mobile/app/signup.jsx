@@ -14,7 +14,8 @@ import {
 import { Link, router } from "expo-router";
 import React, { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "./firebaseConfig";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "./firebaseConfig";
 
 export default function SignupScreen() {
   const [fullName, setFullName] = useState("");
@@ -33,15 +34,31 @@ export default function SignupScreen() {
     if (password !== confirmPassword)
       return Alert.alert("Error", "Passwords don't match");
     if (password.length < 6)
-      return Alert.alert("Error", "Password must be 6+ characters");
+      return Alert.alert("Error", "Password must be at least 6 characters");
 
     setLoading(true);
+
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      // Create Firebase Auth user
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+      const user = userCredential.user;
+
+      // Save user profile in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        fullName: fullName,
+        email: email,
+        createdAt: serverTimestamp(),
+      });
+
       Alert.alert("Success", "Account created! Welcome to FitTrack");
-      router.push("/dashboard");
+      router.replace("/dashboard");
     } catch (error) {
-      Alert.alert("Error", error.message);
+      Alert.alert("Signup Failed", error.message);
     } finally {
       setLoading(false);
     }
@@ -175,9 +192,9 @@ export default function SignupScreen() {
 
           {/* Footer */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account? </Text>
+            <Text style={styles.footerText}>Already have an account?</Text>
             <Link href="/login">
-              <Text style={styles.loginLink}>Login</Text>
+              <Text style={styles.loginLink}> Login</Text>
             </Link>
           </View>
         </ScrollView>
@@ -185,7 +202,6 @@ export default function SignupScreen() {
     </SafeAreaView>
   );
 }
-
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -202,7 +218,6 @@ const styles = StyleSheet.create({
   topSection: {
     alignItems: "center",
     marginBottom: 32,
-    paddingTop: 10,
   },
   logoCircle: {
     width: 90,
@@ -222,18 +237,15 @@ const styles = StyleSheet.create({
     fontSize: 36,
     fontWeight: "800",
     color: "#C4935D",
-    marginBottom: 6,
-    letterSpacing: 1,
   },
   tagline: {
     fontSize: 13,
     color: "#999999",
-    textAlign: "center",
   },
   divider: {
     height: 1,
     backgroundColor: "#333333",
-    marginBottom: 20,
+    marginVertical: 20,
   },
   formSection: {
     marginBottom: 24,
@@ -242,7 +254,6 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "700",
     color: "#ffffff",
-    marginBottom: 6,
   },
   welcomeSubtitle: {
     fontSize: 13,
@@ -283,7 +294,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 20,
   },
   btnDisabled: {
     opacity: 0.7,
@@ -295,13 +305,12 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   arrowIcon: {
-    color: "#1a1a1a",
     fontSize: 18,
   },
   footer: {
     flexDirection: "row",
     justifyContent: "center",
-    paddingVertical: 20,
+    marginTop: 20,
   },
   footerText: {
     color: "#999999",
@@ -311,7 +320,5 @@ const styles = StyleSheet.create({
     color: "#C4935D",
     fontSize: 13,
     fontWeight: "700",
-    marginLeft: 4,
-    textDecorationLine: "underline",
   },
 });
