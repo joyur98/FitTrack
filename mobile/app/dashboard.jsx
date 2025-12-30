@@ -10,13 +10,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 import { auth } from './firebaseConfig';
 import { signOut } from 'firebase/auth';
 import { getFirestore, collection, query, where, onSnapshot } from 'firebase/firestore';
 
 export default function Dashboard() {
   const router = useRouter();
+  const Pathname=usePathname();
   const db = getFirestore();
 
   const [profileImage, setProfileImage] = useState(null);
@@ -175,22 +176,12 @@ export default function Dashboard() {
           </View>
         </View>
 
-        {/* GOAL */}
-        <View style={styles.goalSection}>
-          <Text style={styles.goalTitle}>Weekly Goal</Text>
-          <Text style={styles.goalDescText}>
-            You've completed 72% of your weekly goal 🎯
-          </Text>
 
-          <View style={styles.progressBar}>
-            <View style={styles.progressFilled} />
-          </View>
-        </View>
-
-        {/* BOTTOM NAV */}
+      </ScrollView>
+              {/* BOTTOM NAV */}
         <View style={styles.bottomNav}>
           <TouchableOpacity
-            style={styles.navButton}
+            style={[styles.navButton]}
             onPress={() => router.push('/workout')}
           >
             <Text style={styles.navEmoji}>🏋️</Text>
@@ -221,7 +212,6 @@ export default function Dashboard() {
             <Text style={styles.navText}>Settings</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
     </SafeAreaView>
   );
 }
