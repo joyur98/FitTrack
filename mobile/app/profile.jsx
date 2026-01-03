@@ -1,4 +1,5 @@
 // Import UI components from React Native
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,13 +7,65 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
+  ActivityIndicator,
 } from "react-native";
 
 // Import navigation tool from Expo Router
 import { router } from "expo-router";
 
+// Import Firebase auth
+import { auth } from "./firebaseConfig";
+import { signOut } from "firebase/auth";
+
 // Define and export the main ProfileScreen component
 export default function ProfileScreen() {
+  // State to store user data
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Array of avatar options
+  const avatars = ['👨', '👩', '🧑', '👨‍💼', '👩‍💼', '👨‍🎓', '👩‍🎓', '🧔', '👨‍🦰', '👩‍🦰', '👨‍🦱', '👩‍🦱', '👨‍🦳', '👩‍🦳', '🧑‍🦰', '🧑‍🦱'];
+  
+  // Get a consistent avatar based on email
+  const getAvatarForUser = (email) => {
+    if (!email) return '👤';
+    // Use email to generate a consistent index
+    const hash = email.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return avatars[hash % avatars.length];
+  };
+
+  // Load user data when component mounts
+  useEffect(() => {
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      setUser({
+        name: currentUser.displayName || currentUser.email.split('@')[0],
+        email: currentUser.email,
+      });
+    }
+    setLoading(false);
+  }, []);
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.replace("/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
+  // Show loading spinner while fetching user data
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#6f4e37" />
+        </View>
+      </SafeAreaView>
+    );
+  }
   // Sample workout history data
   const workoutHistory = [
     { id: 1, name: "Full Body Workout", date: "Dec 28, 2025", duration: "45 min", calories: 350 },
@@ -20,24 +73,22 @@ export default function ProfileScreen() {
     { id: 3, name: "Cardio Blast", date: "Dec 24, 2025", duration: "30 min", calories: 280 },
   ];
 
-  // User data - you can replace this with actual user data from your state/backend
-  const userName = "Alex Morgan";
-  const userEmail = "alex.morgan@fitness.com";
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
         
         {/* Profile Header Section */}
         <View style={styles.profileHeader}>
-          {/* Profile Avatar */}
+          {/* Profile Avatar - Dynamic based on user email */}
           <View style={styles.profilePicture}>
-            <Text style={styles.avatar}>👤</Text>
+            <Text style={styles.avatar}>
+              {user ? getAvatarForUser(user.email) : '👤'}
+            </Text>
           </View>
           
-          {/* User Name */}
-          <Text style={styles.userName}>{userName}</Text>
-          <Text style={styles.userEmail}>{userEmail}</Text>
+          {/* User Name - Display logged-in user's info */}
+          <Text style={styles.userName}>{user?.name || "User"}</Text>
+          <Text style={styles.userEmail}>{user?.email || "No email"}</Text>
           
           {/* Edit Profile Button */}
           <TouchableOpacity style={styles.editButton}>
@@ -155,7 +206,10 @@ export default function ProfileScreen() {
             <Text style={styles.actionButtonText}>🎯 Goals</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={[styles.actionButton, styles.logoutButton]}>
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.logoutButton]}
+            onPress={handleLogout}
+          >
             <Text style={styles.logoutText}>🚪 Logout</Text>
           </TouchableOpacity>
         </View>
@@ -170,6 +224,12 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#f4ebe0", // Light coffee cream
+  },
+  
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   
   container: {
