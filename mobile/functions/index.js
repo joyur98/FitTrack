@@ -20,16 +20,33 @@ function detectIntent(text){
     if(text.includes("time") || text.includes("morning")) return "TIMING"; 
 }
 
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
+exports.fitTrackAssistant = functions.https.onRequest(async (req, res) => {
+  const message = req.body.message;
+  const intent = detectIntent(message);
+
+  if (intent === "OUT_OF_SCOPE") {
+    return res.json({
+      reply: "I can help only with fitness, workouts, and nutrition related questions."
+    });
+  }
+
+  let reply = "";
+
+  if (intent === "CALORIES") {
+    reply = await handleCalories(message);
+  }
+
+  if (intent === "WORKOUT") {
+    reply = await handleWorkout(message);
+  }
+
+  if (intent === "EXERCISE_FORM") {
+    reply = await handleExerciseForm(message);
+  }
+
+  res.json({ reply });
+});
+
 setGlobalOptions({ maxInstances: 10 });
 
 // Create and deploy your first functions
