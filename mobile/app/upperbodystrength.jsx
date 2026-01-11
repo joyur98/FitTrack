@@ -11,20 +11,21 @@ import {
 import { auth, db } from "./firebaseConfig";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
+// Upper Body Strength Workout Plan
 const workouts = [
-  { title: "Jumping Jacks", desc: "5 minutes • Warm-up • Full body activation" },
-  { title: "Bodyweight Squats", desc: "4 sets × 15 reps • Legs & glutes" },
   { title: "Push-Ups", desc: "4 sets × 12 reps • Chest, shoulders & arms" },
-  { title: "Mountain Climbers", desc: "4 minutes • Core & cardio burn" },
-  { title: "Lunges", desc: "3 sets × 12 reps per leg • Lower body strength" },
-  { title: "Plank Hold", desc: "3 sets × 45 seconds • Core stability" },
-  { title: "Burpees", desc: "3 sets × 10 reps • High calorie burn" },
-  { title: "Russian Twists", desc: "3 sets × 20 reps • Core & obliques" },
-  { title: "High Knees", desc: "3 minutes • Cardio finisher" },
-  { title: "Stretch & Cool Down", desc: "5 minutes • Full body recovery" },
+  { title: "Dumbbell Bench Press", desc: "4 sets × 10 reps • Chest & triceps" },
+  { title: "Bent Over Rows", desc: "4 sets × 12 reps • Back & biceps" },
+  { title: "Shoulder Press", desc: "3 sets × 12 reps • Shoulders & arms" },
+  { title: "Bicep Curls", desc: "3 sets × 15 reps • Biceps focus" },
+  { title: "Tricep Dips", desc: "3 sets × 12 reps • Triceps focus" },
+  { title: "Plank to Push-Up", desc: "3 sets × 10 reps • Core & upper body" },
+  { title: "Mountain Climbers", desc: "3 minutes • Core & cardio burn" },
+  { title: "High Plank Hold", desc: "3 sets × 45 seconds • Core & arms stability" },
+  { title: "Stretch & Cool Down", desc: "5 minutes • Upper body recovery" },
 ];
 
-export default function FullBodyWorkoutScreen() {
+export default function UpperBodyStrengthScreen() {
   const handleCompleteWorkout = async () => {
     try {
       const user = auth.currentUser;
@@ -35,16 +36,13 @@ export default function FullBodyWorkoutScreen() {
       }
 
       await addDoc(collection(db, "calorie_burn"), {
-        calorie: 350,
+        calorie: 300,
         date: serverTimestamp(),
         userID: user.uid,
-        workoutName: "Full Body Workout",
+        workoutName: "Upper Body Strength",
       });
 
-      Alert.alert(
-        "Workout Completed 💪",
-        "350 calories added successfully!"
-      );
+      Alert.alert("Workout Completed 💪", "300 calories added successfully!");
     } catch (error) {
       console.error(error);
       Alert.alert("Error", "Failed to save workout");
@@ -56,9 +54,9 @@ export default function FullBodyWorkoutScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Full Body Workout</Text>
+          <Text style={styles.title}>Upper Body Strength</Text>
           <Text style={styles.subtitle}>
-            45 Minutes • ~350 Calories Burn
+            40 Minutes • ~300 Calories Burn
           </Text>
         </View>
 

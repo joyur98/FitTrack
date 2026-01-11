@@ -11,20 +11,21 @@ import {
 import { auth, db } from "./firebaseConfig";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
+// CardioBlast Workout Plan
 const workouts = [
   { title: "Jumping Jacks", desc: "5 minutes • Warm-up • Full body activation" },
-  { title: "Bodyweight Squats", desc: "4 sets × 15 reps • Legs & glutes" },
-  { title: "Push-Ups", desc: "4 sets × 12 reps • Chest, shoulders & arms" },
-  { title: "Mountain Climbers", desc: "4 minutes • Core & cardio burn" },
-  { title: "Lunges", desc: "3 sets × 12 reps per leg • Lower body strength" },
-  { title: "Plank Hold", desc: "3 sets × 45 seconds • Core stability" },
-  { title: "Burpees", desc: "3 sets × 10 reps • High calorie burn" },
-  { title: "Russian Twists", desc: "3 sets × 20 reps • Core & obliques" },
   { title: "High Knees", desc: "3 minutes • Cardio finisher" },
-  { title: "Stretch & Cool Down", desc: "5 minutes • Full body recovery" },
+  { title: "Mountain Climbers", desc: "3 sets × 1 minute • Core & cardio burn" },
+  { title: "Burpees", desc: "3 sets × 12 reps • Full body high intensity" },
+  { title: "Butt Kicks", desc: "3 minutes • Lower body cardio" },
+  { title: "Skater Jumps", desc: "3 sets × 15 reps per side • Legs & cardio" },
+  { title: "Plank Jacks", desc: "3 sets × 1 minute • Core & cardio burn" },
+  { title: "Jump Rope", desc: "5 minutes • Cardio endurance" },
+  { title: "Sprint in Place", desc: "2 minutes • High-intensity cardio" },
+  { title: "Stretch & Cool Down", desc: "5 minutes • Recovery & flexibility" },
 ];
 
-export default function FullBodyWorkoutScreen() {
+export default function CardioBlastScreen() {
   const handleCompleteWorkout = async () => {
     try {
       const user = auth.currentUser;
@@ -35,15 +36,15 @@ export default function FullBodyWorkoutScreen() {
       }
 
       await addDoc(collection(db, "calorie_burn"), {
-        calorie: 350,
+        calorie: 280,
         date: serverTimestamp(),
         userID: user.uid,
-        workoutName: "Full Body Workout",
+        workoutName: "CardioBlast",
       });
 
       Alert.alert(
-        "Workout Completed 💪",
-        "350 calories added successfully!"
+        "Workout Completed 🔥",
+        "280 calories added successfully!"
       );
     } catch (error) {
       console.error(error);
@@ -56,9 +57,9 @@ export default function FullBodyWorkoutScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Full Body Workout</Text>
+          <Text style={styles.title}>CardioBlast</Text>
           <Text style={styles.subtitle}>
-            45 Minutes • ~350 Calories Burn
+            30 Minutes • ~280 Calories Burn
           </Text>
         </View>
 
