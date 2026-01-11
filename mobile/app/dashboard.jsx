@@ -10,13 +10,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 import { auth } from './firebaseConfig';
 import { signOut } from 'firebase/auth';
-import { getFirestore, collection, query, where, onSnapshot } from 'firebase/firestore';
+import { getFirestore, collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
 
 export default function Dashboard() {
   const router = useRouter();
+  const pathname=usePathname();
   const db = getFirestore();
 
   const [profileImage, setProfileImage] = useState(null);
@@ -25,15 +26,25 @@ export default function Dashboard() {
   const [totalCalories, setTotalCalories] = useState(0);
 
   // Fetch user info and today's total calories
-  useEffect(() => {
+useEffect(() => {
   const user = auth.currentUser;
   if (!user) {
     setLoading(false);
     return;
   }
 
-  const name = user.email.split('@')[0];
-  setUserName(name.charAt(0).toUpperCase() + name.slice(1));
+  const fetchFullName = async () => {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists()) {
+        setUserName(userDoc.data().fullName);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  fetchFullName();
 
   const q = query(
     collection(db, 'calorie_intake'),
@@ -43,29 +54,24 @@ export default function Dashboard() {
   const unsubscribe = onSnapshot(q, (snapshot) => {
     let total = 0;
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // start of today
+    today.setHours(0, 0, 0, 0);
 
     snapshot.forEach((doc) => {
       const data = doc.data();
-
-      // Safety check
-      if (data.calorie && data.date && data.date.toDate) {
-        const entryDate = data.date.toDate();
-        if (entryDate >= today) {
+      if (data.calorie && data.date?.toDate) {
+        if (data.date.toDate() >= today) {
           total += data.calorie;
         }
       }
     });
 
     setTotalCalories(total);
-    setLoading(false); // stop loading after data is processed
-  }, (error) => {
-    console.error("Firestore snapshot error:", error);
     setLoading(false);
   });
 
   return () => unsubscribe();
 }, []);
+
 
   const pickProfileImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -175,19 +181,9 @@ export default function Dashboard() {
           </View>
         </View>
 
-        {/* GOAL */}
-        <View style={styles.goalSection}>
-          <Text style={styles.goalTitle}>Weekly Goal</Text>
-          <Text style={styles.goalDescText}>
-            You've completed 72% of your weekly goal 🎯
-          </Text>
 
-          <View style={styles.progressBar}>
-            <View style={styles.progressFilled} />
-          </View>
-        </View>
-
-        {/* BOTTOM NAV */}
+      </ScrollView>
+              {/* BOTTOM NAV */}
         <View style={styles.bottomNav}>
           <TouchableOpacity
             style={styles.navButton}
@@ -198,12 +194,19 @@ export default function Dashboard() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.navButton, styles.navButtonActive]}
-            onPress={() => router.push('/dashboard')}
-          >
-            <Text style={styles.navEmoji}>🏠</Text>
-            <Text style={[styles.navText, styles.navTextActive]}>Home</Text>
-          </TouchableOpacity>
+            style={[styles.navButton, pathname === '/dashboard' && styles.navButtonActive]}
+            onPress={() => {
+              if (pathname !== '/dashboard') {
+              router.replace('/dashboard');
+              }
+              }}
+>
+  <Text style={styles.navEmoji}>🏠</Text>
+  <Text style={[styles.navText, pathname === '/dashboard' && styles.navTextActive]}>
+    Home
+  </Text>
+</TouchableOpacity>
+
 
           <TouchableOpacity
             style={styles.navButton}
@@ -221,7 +224,6 @@ export default function Dashboard() {
             <Text style={styles.navText}>Settings</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
     </SafeAreaView>
   );
 }
