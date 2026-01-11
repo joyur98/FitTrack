@@ -70,7 +70,7 @@ export default function WorkoutScreen() {
           <TouchableOpacity
             style={styles.startButton}
             // Navigate to workoutDetail screen when pressed
-            onPress={() => router.push("/workoutDetail")}
+            onPress={() => router.push("/fullbodyworkout")}
           >
             {/* Button text */}
             <Text style={styles.startButtonText}>Start Workout</Text>

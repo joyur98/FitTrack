@@ -27,19 +27,25 @@ export default function SignupScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSignup = async () => {
-    if (!fullName.trim()) return Alert.alert("Error", "Enter your full name");
-    if (!email.trim()) return Alert.alert("Error", "Enter your email");
+    if (!fullName.trim())
+      return Alert.alert("Error", "Enter your full name");
+
+    if (!email.trim())
+      return Alert.alert("Error", "Enter your email");
+
     if (!password || !confirmPassword)
       return Alert.alert("Error", "Enter password");
+
     if (password !== confirmPassword)
       return Alert.alert("Error", "Passwords don't match");
+
     if (password.length < 6)
       return Alert.alert("Error", "Password must be at least 6 characters");
 
     setLoading(true);
 
     try {
-      // Create Firebase Auth user
+      // 🔐 Create auth user
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -48,15 +54,16 @@ export default function SignupScreen() {
 
       const user = userCredential.user;
 
-      // Save user profile in Firestore
+      // 🗂️ Save base user info
       await setDoc(doc(db, "users", user.uid), {
-        fullName: fullName,
-        email: email,
+        fullName,
+        email,
         createdAt: serverTimestamp(),
       });
 
-      Alert.alert("Success", "Account created! Welcome to FitTrack");
-      router.replace("/dashboard");
+      // ✅ Go to PROFILE SETUP (onboarding)
+      router.replace("./profile_setup");
+
     } catch (error) {
       Alert.alert("Signup Failed", error.message);
     } finally {
@@ -204,21 +211,10 @@ export default function SignupScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#1a1a1a",
-  },
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-  },
-  topSection: {
-    alignItems: "center",
-    marginBottom: 32,
-  },
+  safeArea: { flex: 1, backgroundColor: "#1a1a1a" },
+  container: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingVertical: 20 },
+  topSection: { alignItems: "center", marginBottom: 32 },
   logoCircle: {
     width: 90,
     height: 90,
@@ -229,40 +225,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 24,
   },
-  logoIcon: {
-    fontSize: 50,
-    color: "#C4935D",
-  },
-  appName: {
-    fontSize: 36,
-    fontWeight: "800",
-    color: "#C4935D",
-  },
-  tagline: {
-    fontSize: 13,
-    color: "#999999",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#333333",
-    marginVertical: 20,
-  },
-  formSection: {
-    marginBottom: 24,
-  },
-  welcomeTitle: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#ffffff",
-  },
-  welcomeSubtitle: {
-    fontSize: 13,
-    color: "#999999",
-    marginBottom: 24,
-  },
-  inputGroup: {
-    marginBottom: 14,
-  },
+  logoIcon: { fontSize: 50, color: "#C4935D" },
+  appName: { fontSize: 36, fontWeight: "800", color: "#C4935D" },
+  tagline: { fontSize: 13, color: "#999999" },
+  divider: { height: 1, backgroundColor: "#333333", marginVertical: 20 },
+  formSection: { marginBottom: 24 },
+  welcomeTitle: { fontSize: 28, fontWeight: "700", color: "#ffffff" },
+  welcomeSubtitle: { fontSize: 13, color: "#999999", marginBottom: 24 },
+  inputGroup: { marginBottom: 14 },
   inputBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -272,21 +242,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     height: 54,
   },
-  inputIcon: {
-    fontSize: 20,
-    marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    color: "#ffffff",
-    fontSize: 15,
-  },
-  eyeBtn: {
-    padding: 8,
-  },
-  eyeIcon: {
-    fontSize: 18,
-  },
+  inputIcon: { fontSize: 20, marginRight: 10 },
+  input: { flex: 1, color: "#ffffff", fontSize: 15 },
+  eyeBtn: { padding: 8 },
+  eyeIcon: { fontSize: 18 },
   signupBtn: {
     backgroundColor: "#C4935D",
     paddingVertical: 14,
@@ -295,30 +254,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  btnDisabled: {
-    opacity: 0.7,
-  },
+  btnDisabled: { opacity: 0.7 },
   signupBtnText: {
     color: "#1a1a1a",
     fontSize: 15,
     fontWeight: "700",
     marginRight: 8,
   },
-  arrowIcon: {
-    fontSize: 18,
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 20,
-  },
-  footerText: {
-    color: "#999999",
-    fontSize: 13,
-  },
-  loginLink: {
-    color: "#C4935D",
-    fontSize: 13,
-    fontWeight: "700",
-  },
+  arrowIcon: { fontSize: 18 },
+  footer: { flexDirection: "row", justifyContent: "center", marginTop: 20 },
+  footerText: { color: "#999999", fontSize: 13 },
+  loginLink: { color: "#C4935D", fontSize: 13, fontWeight: "700" },
 });

@@ -154,11 +154,17 @@ useEffect(() => {
               <Text style={styles.cardName}>Steps</Text>
             </View>
 
-            <View style={[styles.summaryCard, { borderLeftColor: '#C4935D' }]}>
-              <Text style={styles.cardIcon}>🔥</Text>
-              <Text style={styles.cardValue}>576</Text>
-              <Text style={styles.cardName}>Burned</Text>
-            </View>
+            <TouchableOpacity
+  style={[styles.summaryCard, { borderLeftColor: "#C4935D" }]}
+  onPress={() => router.push("/calorie-burn")}
+  activeOpacity={0.85}
+>
+  <Text style={styles.cardIcon}>🔥</Text>
+  <Text style={styles.cardValue}>{totalBurnedCalories}</Text>
+  <Text style={styles.cardName}>Burned</Text>
+</TouchableOpacity>
+
+
           </View>
 
           <View style={styles.cardsRow}>
