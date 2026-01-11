@@ -1,4 +1,5 @@
 // Import UI components from React Native
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,13 +7,149 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
+  ActivityIndicator,
+  TextInput,
+  Modal,
+  Alert,
 } from "react-native";
 
 // Import navigation tool from Expo Router
 import { router } from "expo-router";
 
+// Import Firebase auth and Firestore
+import { auth } from "./firebaseConfig";
+import { signOut, updateProfile } from "firebase/auth";
+import { db } from "./firebaseConfig"; // Make sure to export db from firebaseConfig
+import { doc, getDoc, setDoc } from "firebase/firestore";
+
 // Define and export the main ProfileScreen component
 export default function ProfileScreen() {
+  // State to store user data
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [newName, setNewName] = useState("");
+
+  // Array of avatar options
+  const avatars = ['👨', '👩', '🧑', '👨‍💼', '👩‍💼', '👨‍🎓', '👩‍🎓', '🧔', '👨‍🦰', '👩‍🦰', '👨‍🦱', '👩‍🦱', '👨‍🦳', '👩‍🦳', '🧑‍🦰', '🧑‍🦱'];
+  
+  // Get a consistent avatar based on email
+  const getAvatarForUser = (email) => {
+    if (!email) return '👤';
+    // Use email to generate a consistent index
+    const hash = email.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return avatars[hash % avatars.length];
+  };
+
+  // Fetch user name from Firestore
+  const fetchUserName = async (userId) => {
+    try {
+      const userDocRef = doc(db, "users", userId);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        return userDoc.data().displayName || null;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching user name:", error);
+      return null;
+    }
+  };
+
+  // Save user name to Firestore and update auth profile
+  const saveUserName = async (name) => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+
+    try {
+      // Update Firebase Auth profile
+      await updateProfile(currentUser, {
+        displayName: name,
+      });
+
+      // Update Firestore document
+      const userDocRef = doc(db, "users", currentUser.uid);
+      await setDoc(userDocRef, {
+        displayName: name,
+        email: currentUser.email,
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
+
+      // Update local state
+      setUser({
+        name: name,
+        email: currentUser.email,
+      });
+
+      Alert.alert("Success", "Profile updated successfully!");
+    } catch (error) {
+      console.error("Error saving user name:", error);
+      Alert.alert("Error", "Failed to update profile. Please try again.");
+    }
+  };
+
+  // Load user data when component mounts
+  useEffect(() => {
+    const loadUserData = async () => {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        // Try to get name from Firestore first
+        const firestoreName = await fetchUserName(currentUser.uid);
+        
+        // Fallback to Auth displayName or email
+        const displayName = firestoreName || 
+                           currentUser.displayName || 
+                           currentUser.email.split('@')[0];
+        
+        setUser({
+          name: displayName,
+          email: currentUser.email,
+        });
+      }
+      setLoading(false);
+    };
+
+    loadUserData();
+  }, []);
+
+  // Handle edit profile
+  const handleEditProfile = () => {
+    setNewName(user?.name || "");
+    setEditModalVisible(true);
+  };
+
+  // Handle save name
+  const handleSaveName = async () => {
+    if (newName.trim()) {
+      setEditModalVisible(false);
+      await saveUserName(newName.trim());
+    } else {
+      Alert.alert("Error", "Please enter a valid name");
+    }
+  };
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.replace("/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
+  // Show loading spinner while fetching user data
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#6f4e37" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   // Sample workout history data
   const workoutHistory = [
     { id: 1, name: "Full Body Workout", date: "Dec 28, 2025", duration: "45 min", calories: 350 },
@@ -20,27 +157,25 @@ export default function ProfileScreen() {
     { id: 3, name: "Cardio Blast", date: "Dec 24, 2025", duration: "30 min", calories: 280 },
   ];
 
-  // User data - you can replace this with actual user data from your state/backend
-  const userName = "Alex Morgan";
-  const userEmail = "alex.morgan@fitness.com";
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
         
         {/* Profile Header Section */}
         <View style={styles.profileHeader}>
-          {/* Profile Avatar */}
+          {/* Profile Avatar - Dynamic based on user email */}
           <View style={styles.profilePicture}>
-            <Text style={styles.avatar}>👤</Text>
+            <Text style={styles.avatar}>
+              {user ? getAvatarForUser(user.email) : '👤'}
+            </Text>
           </View>
           
-          {/* User Name */}
-          <Text style={styles.userName}>{userName}</Text>
-          <Text style={styles.userEmail}>{userEmail}</Text>
+          {/* User Name - Display logged-in user's info */}
+          <Text style={styles.userName}>{user?.name || "User"}</Text>
+          <Text style={styles.userEmail}>{user?.email || "No email"}</Text>
           
           {/* Edit Profile Button */}
-          <TouchableOpacity style={styles.editButton}>
+          <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
             <Text style={styles.editButtonText}>✏️ Edit Profile</Text>
           </TouchableOpacity>
         </View>
@@ -155,12 +290,53 @@ export default function ProfileScreen() {
             <Text style={styles.actionButtonText}>🎯 Goals</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={[styles.actionButton, styles.logoutButton]}>
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.logoutButton]}
+            onPress={handleLogout}
+          >
             <Text style={styles.logoutText}>🚪 Logout</Text>
           </TouchableOpacity>
         </View>
 
       </ScrollView>
+
+      {/* Edit Name Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={editModalVisible}
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Profile</Text>
+            
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your name"
+              value={newName}
+              onChangeText={setNewName}
+              autoFocus={true}
+            />
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setEditModalVisible(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={handleSaveName}
+              >
+                <Text style={styles.saveButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -170,6 +346,12 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#f4ebe0", // Light coffee cream
+  },
+  
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   
   container: {
@@ -419,6 +601,74 @@ const styles = StyleSheet.create({
   logoutText: {
     fontSize: 16,
     color: "#5d4037", // Darker coffee brown
+    fontWeight: "600",
+    textAlign: "center",
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  
+  modalContent: {
+    backgroundColor: "#f4ebe0",
+    borderRadius: 20,
+    padding: 24,
+    width: "85%",
+    elevation: 5,
+  },
+  
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#3e2723",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  
+  input: {
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: "#d7ccc8",
+    marginBottom: 20,
+  },
+  
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  
+  modalButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 12,
+    marginHorizontal: 6,
+  },
+  
+  cancelButton: {
+    backgroundColor: "#bcaaa4",
+  },
+  
+  cancelButtonText: {
+    color: "#5d4037",
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  
+  saveButton: {
+    backgroundColor: "#6f4e37",
+  },
+  
+  saveButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
     fontWeight: "600",
     textAlign: "center",
   },
