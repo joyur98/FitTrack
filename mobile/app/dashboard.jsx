@@ -34,8 +34,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [totalCalories, setTotalCalories] = useState(0);
   const [totalBurnedCalories, setTotalBurnedCalories] = useState(0);
-  const [requiredCalories, setRequiredCalories] = useState(2000); // default
-  const [goal, setGoal] = useState("maintain"); // "gain" | "lose" | "maintain"
+  const [requiredCalories, setRequiredCalories] = useState(2000);
+  const [goal, setGoal] = useState("maintain");
 
   useEffect(() => {
     const user = auth.currentUser;
@@ -50,19 +50,17 @@ export default function Dashboard() {
         const data = snap.data();
         setUserName(data.fullName);
 
-        // ----- Calculate required calories -----
-        const bmr = calculateBMR(data); // basic BMR based on height, weight
-        const tdee = calculateTDEE(bmr, data.activityLevel); // total daily energy expenditure
+        const bmr = calculateBMR(data);
+        const tdee = calculateTDEE(bmr, data.activityLevel);
 
-        // Assume goal stored in database (for example "lose", "gain", "maintain")
         const userGoal = data.goal || "maintain";
         setGoal(userGoal);
 
-        let caloriesWithGoal = tdee;
-        if (userGoal === "lose") caloriesWithGoal -= 500;
-        else if (userGoal === "gain") caloriesWithGoal += 500;
+        let finalCalories = tdee;
+        if (userGoal === "lose") finalCalories -= 500;
+        if (userGoal === "gain") finalCalories += 500;
 
-        setRequiredCalories(Math.round(caloriesWithGoal));
+        setRequiredCalories(Math.round(finalCalories));
       }
     };
 
@@ -87,13 +85,6 @@ export default function Dashboard() {
         }
       });
       setTotalCalories(total);
-
-      if (total > requiredCalories) {
-        Alert.alert(
-          "⚠️ Over the Limit",
-          "You might want to stop eating for today!"
-        );
-      }
     });
 
     const unsubBurn = onSnapshot(burnQ, (snap) => {
@@ -114,21 +105,20 @@ export default function Dashboard() {
     };
   }, [requiredCalories]);
 
-  // ----- BMR Calculation using Mifflin-St Jeor formula -----
-  const calculateBMR = (user) => {
-    const { weight, height } = user; // kg, cm
-    // Assuming male for now, can add gender later
-    return 10 * weight + 6.25 * height - 5 * 25 + 5; // age assumed 25
-  };
+  // ---------- CALCULATIONS ----------
+  const calculateBMR = ({ weight, height }) =>
+    10 * weight + 6.25 * height - 5 * 25 + 5;
 
   const calculateTDEE = (bmr, activityLevel) => {
-    // Activity multiplier
-    let multiplier = 1.2;
-    if (activityLevel === "low") multiplier = 1.2;
-    else if (activityLevel === "moderate") multiplier = 1.55;
-    else if (activityLevel === "high") multiplier = 1.9;
-    return bmr * multiplier;
+    if (activityLevel === "moderate") return bmr * 1.55;
+    if (activityLevel === "high") return bmr * 1.9;
+    return bmr * 1.2;
   };
+
+  const intakePercentage = Math.min(
+    Math.round((totalCalories / requiredCalories) * 100),
+    100
+  );
 
   const pickProfileImage = async () => {
     const res = await ImagePicker.launchImageLibraryAsync({
@@ -186,6 +176,7 @@ export default function Dashboard() {
         <Text style={styles.summaryTitle}>Today’s Summary</Text>
 
         <View style={styles.cardsRow}>
+          {/* BURNED */}
           <TouchableOpacity
             style={[styles.summaryCard, styles.burnedCard]}
             onPress={() => router.push("/calorieBurnScreen")}
@@ -195,15 +186,33 @@ export default function Dashboard() {
             <Text style={styles.cardName}>Calories Burned</Text>
           </TouchableOpacity>
 
+          {/* INTAKE */}
           <TouchableOpacity
             style={[styles.summaryCard, styles.intakeCard]}
             onPress={() => router.push("/calories")}
           >
             <Text style={styles.cardIcon}>🍎</Text>
-            <Text style={styles.cardValue}>
+
+            <Text
+              style={styles.cardValueSmall}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
               {totalCalories} / {requiredCalories}
             </Text>
-            <Text style={styles.cardName}>Calories Intake</Text>
+
+            <View style={styles.progressBarBackground}>
+              <View
+                style={[
+                  styles.progressBarFill,
+                  { width: `${intakePercentage}%` },
+                ]}
+              />
+            </View>
+
+            <Text style={styles.percentageText}>
+              {intakePercentage}% of daily goal
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -239,17 +248,18 @@ export default function Dashboard() {
   );
 }
 
-/* REUSABLE NAV ITEM */
+/* NAV ITEM */
 const BottomNavItem = ({ emoji, label, active, onPress }) => (
   <TouchableOpacity
     style={[styles.navItem, active && styles.navItemActive]}
     onPress={onPress}
-    activeOpacity={0.8}
   >
     <Text style={[styles.navEmoji, active && styles.navEmojiActive]}>
       {emoji}
     </Text>
-    <Text style={[styles.navText, active && styles.navTextActive]}>{label}</Text>
+    <Text style={[styles.navText, active && styles.navTextActive]}>
+      {label}
+    </Text>
   </TouchableOpacity>
 );
 
@@ -296,7 +306,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     color: "#4a3b31",
   },
-  cardsRow: { flexDirection: "row", justifyContent: "space-between" },
+  cardsRow: { flexDirection: "row" },
 
   summaryCard: {
     flex: 1,
@@ -310,14 +320,38 @@ const styles = StyleSheet.create({
   burnedCard: { borderTopWidth: 4, borderTopColor: "#e74c3c" },
   intakeCard: { borderTopWidth: 4, borderTopColor: "#27ae60" },
 
-  cardIcon: { fontSize: 28 },
+  cardIcon: { fontSize: 26 },
   cardValue: {
     fontSize: 26,
     fontWeight: "800",
     color: "#4a3b31",
     marginTop: 6,
   },
+  cardValueSmall: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#4a3b31",
+    marginTop: 6,
+  },
   cardName: { fontSize: 12, color: "#8b7968", marginTop: 4 },
+
+  progressBarBackground: {
+    width: "100%",
+    height: 8,
+    backgroundColor: "#eee4d8",
+    borderRadius: 10,
+    marginTop: 10,
+    overflow: "hidden",
+  },
+  progressBarFill: {
+    height: "100%",
+    backgroundColor: "#27ae60",
+  },
+  percentageText: {
+    fontSize: 11,
+    color: "#8b7968",
+    marginTop: 6,
+  },
 
   bottomNav: {
     flexDirection: "row",
@@ -332,16 +366,9 @@ const styles = StyleSheet.create({
     right: 0,
     elevation: 8,
   },
-  navItem: {
-    alignItems: "center",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  navItemActive: {
-    backgroundColor: "#f8f5f0",
-    borderRadius: 10,
-  },
-  navEmoji: { fontSize: 22, marginBottom: 2 },
+  navItem: { alignItems: "center", paddingVertical: 6 },
+  navItemActive: { backgroundColor: "#f8f5f0", borderRadius: 10 },
+  navEmoji: { fontSize: 22 },
   navEmojiActive: { color: "#C4935D" },
   navText: { fontSize: 11, color: "#8b7968" },
   navTextActive: { color: "#C4935D", fontWeight: "600" },
