@@ -47,6 +47,33 @@ exports.fitTrackAssistant = functions.https.onRequest(async (req, res) => {
   res.json({ reply });
 });
 
+async function handleCalories(text) {
+  const food = extractFoodName(text);
+
+  const doc = await db.collection("foods").doc(food).get();
+  if (!doc.exists) {
+    return "I don't have calorie data for that food yet.";
+  }
+
+  const data = doc.data();
+  return `A medium ${food} contains about ${data.calories} calories.`;
+}
+
+async function handleWorkout(text) {
+  return "A beginner workout could include squats, pushups, and walking for 20 minutes.";
+}
+
+const sendMessage = async (text) => {
+  const res = await fetch(FIREBASE_FUNCTION_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: text })
+  });
+
+  const data = await res.json();
+  return data.reply;
+};
+
 setGlobalOptions({ maxInstances: 10 });
 
 // Create and deploy your first functions
