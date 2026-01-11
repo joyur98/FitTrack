@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,17 +10,54 @@ import {
   ScrollView,
 } from "react-native";
 import { auth, db } from "./firebaseConfig";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 
 export default function CalorieBurnScreen() {
   const [calorie, setCalorie] = useState("");
   const [exercise, setExercise] = useState("");
+  const [totalBurnedCalories, setTotalBurnedCalories] = useState(0);
+  const [loading, setLoading] = useState(false);
 
+  // 🔥 Fetch total burned calories
+  const fetchTotalBurnedCalories = async () => {
+    try {
+      const q = query(
+        collection(db, "calorie_burn"),
+        where("userID", "==", auth.currentUser.uid)
+      );
+
+      const querySnapshot = await getDocs(q);
+      let total = 0;
+
+      querySnapshot.forEach((doc) => {
+        total += doc.data().calorie || 0;
+      });
+
+      setTotalBurnedCalories(total);
+    } catch (error) {
+      console.log("Error fetching burned calories:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchTotalBurnedCalories();
+  }, []);
+
+  // ➕ Add calories
   const handleAddCalories = async () => {
     if (!calorie || !exercise) {
       Alert.alert("Missing Fields", "Please fill in all fields.");
       return;
     }
+
+    setLoading(true);
 
     try {
       await addDoc(collection(db, "calorie_burn"), {
@@ -33,8 +70,11 @@ export default function CalorieBurnScreen() {
       Alert.alert("Success", "Calories added successfully!");
       setCalorie("");
       setExercise("");
+      fetchTotalBurnedCalories(); // 🔄 refresh total
     } catch (error) {
       Alert.alert("Error", error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -49,11 +89,18 @@ export default function CalorieBurnScreen() {
           </Text>
         </View>
 
-        {/* Card */}
+        {/* 🔥 Total Burned Calories Card */}
+        <View style={styles.totalCard}>
+          <Text style={styles.totalTitle}>Total Burned Today</Text>
+          <Text style={styles.totalValue}>
+            {totalBurnedCalories} kcal
+          </Text>
+        </View>
+
+        {/* Add Entry Card */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Add Burned Calories</Text>
 
-          {/* Exercise */}
           <TextInput
             placeholder="Exercise (e.g. Running, HIIT)"
             placeholderTextColor="#9b8577"
@@ -62,7 +109,6 @@ export default function CalorieBurnScreen() {
             onChangeText={setExercise}
           />
 
-          {/* Calories */}
           <TextInput
             placeholder="Calories Burned"
             placeholderTextColor="#9b8577"
@@ -72,26 +118,28 @@ export default function CalorieBurnScreen() {
             onChangeText={setCalorie}
           />
 
-          {/* Button */}
           <TouchableOpacity
             style={styles.addButton}
             onPress={handleAddCalories}
+            disabled={loading}
           >
-            <Text style={styles.addButtonText}>Add Entry</Text>
+            <Text style={styles.addButtonText}>
+              {loading ? "Adding..." : "Add Entry"}
+            </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Info */}
+        {/* Tip */}
         <View style={styles.tipCard}>
           <Text style={styles.tipText}>
-            💡 Tip: Add calories after every workout for accurate daily
-            tracking.
+            💡 Tip: Add calories after every workout for accurate tracking.
           </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -115,6 +163,28 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: "center",
   },
+
+  totalCard: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 16,
+    alignItems: "center",
+    marginBottom: 20,
+    borderLeftWidth: 5,
+    borderLeftColor: "#4CAF50",
+    elevation: 3,
+  },
+  totalTitle: {
+    fontSize: 16,
+    color: "#7a6659",
+  },
+  totalValue: {
+    fontSize: 32,
+    fontWeight: "800",
+    color: "#4CAF50",
+    marginTop: 6,
+  },
+
   card: {
     backgroundColor: "#fff",
     padding: 18,

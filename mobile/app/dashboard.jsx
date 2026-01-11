@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,103 +8,146 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ActivityIndicator,
-} from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { useRouter, usePathname } from 'expo-router';
-import { auth } from './firebaseConfig';
-import { signOut } from 'firebase/auth';
-import { getFirestore, collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
+  Alert,
+} from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import { useRouter, usePathname } from "expo-router";
+import { auth } from "./firebaseConfig";
+import { signOut } from "firebase/auth";
+import {
+  getFirestore,
+  collection,
+  query,
+  where,
+  onSnapshot,
+  doc,
+  getDoc,
+} from "firebase/firestore";
 
 export default function Dashboard() {
   const router = useRouter();
-  const pathname=usePathname();
+  const pathname = usePathname();
   const db = getFirestore();
 
   const [profileImage, setProfileImage] = useState(null);
-  const [userName, setUserName] = useState('User');
+  const [userName, setUserName] = useState("User");
   const [loading, setLoading] = useState(true);
   const [totalCalories, setTotalCalories] = useState(0);
+  const [totalBurnedCalories, setTotalBurnedCalories] = useState(0);
+  const [requiredCalories, setRequiredCalories] = useState(2000); // default
+  const [goal, setGoal] = useState("maintain"); // "gain" | "lose" | "maintain"
 
-  // Fetch user info and today's total calories
-useEffect(() => {
-  const user = auth.currentUser;
-  if (!user) {
-    setLoading(false);
-    return;
-  }
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
 
-  const fetchFullName = async () => {
-    try {
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      if (userDoc.exists()) {
-        setUserName(userDoc.data().fullName);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  fetchFullName();
-
-  const q = query(
-    collection(db, 'calorie_intake'),
-    where('userID', '==', user.uid)
-  );
-
-  const unsubscribe = onSnapshot(q, (snapshot) => {
-    let total = 0;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      if (data.calorie && data.date?.toDate) {
-        if (data.date.toDate() >= today) {
+    const fetchUser = async () => {
+      const snap = await getDoc(doc(db, "users", user.uid));
+      if (snap.exists()) {
+        const data = snap.data();
+        setUserName(data.fullName);
+
+        // ----- Calculate required calories -----
+        const bmr = calculateBMR(data); // basic BMR based on height, weight
+        const tdee = calculateTDEE(bmr, data.activityLevel); // total daily energy expenditure
+
+        // Assume goal stored in database (for example "lose", "gain", "maintain")
+        const userGoal = data.goal || "maintain";
+        setGoal(userGoal);
+
+        let caloriesWithGoal = tdee;
+        if (userGoal === "lose") caloriesWithGoal -= 500;
+        else if (userGoal === "gain") caloriesWithGoal += 500;
+
+        setRequiredCalories(Math.round(caloriesWithGoal));
+      }
+    };
+
+    fetchUser();
+
+    const intakeQ = query(
+      collection(db, "calorie_intake"),
+      where("userID", "==", user.uid)
+    );
+
+    const burnQ = query(
+      collection(db, "calorie_burn"),
+      where("userID", "==", user.uid)
+    );
+
+    const unsubIntake = onSnapshot(intakeQ, (snap) => {
+      let total = 0;
+      snap.forEach((d) => {
+        const data = d.data();
+        if (data.calorie && data.date?.toDate() >= today) {
           total += data.calorie;
         }
+      });
+      setTotalCalories(total);
+
+      if (total > requiredCalories) {
+        Alert.alert(
+          "⚠️ Over the Limit",
+          "You might want to stop eating for today!"
+        );
       }
     });
 
-    setTotalCalories(total);
-    setLoading(false);
-  });
+    const unsubBurn = onSnapshot(burnQ, (snap) => {
+      let total = 0;
+      snap.forEach((d) => {
+        const data = d.data();
+        if (data.calorie && data.date?.toDate() >= today) {
+          total += data.calorie;
+        }
+      });
+      setTotalBurnedCalories(total);
+      setLoading(false);
+    });
 
-  return () => unsubscribe();
-}, []);
+    return () => {
+      unsubIntake();
+      unsubBurn();
+    };
+  }, [requiredCalories]);
 
+  // ----- BMR Calculation using Mifflin-St Jeor formula -----
+  const calculateBMR = (user) => {
+    const { weight, height } = user; // kg, cm
+    // Assuming male for now, can add gender later
+    return 10 * weight + 6.25 * height - 5 * 25 + 5; // age assumed 25
+  };
+
+  const calculateTDEE = (bmr, activityLevel) => {
+    // Activity multiplier
+    let multiplier = 1.2;
+    if (activityLevel === "low") multiplier = 1.2;
+    else if (activityLevel === "moderate") multiplier = 1.55;
+    else if (activityLevel === "high") multiplier = 1.9;
+    return bmr * multiplier;
+  };
 
   const pickProfileImage = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      alert('Permission required');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    const res = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
       aspect: [1, 1],
       quality: 1,
     });
-    if (!result.canceled) {
-      setProfileImage(result.assets[0].uri);
-    }
+    if (!res.canceled) setProfileImage(res.assets[0].uri);
   };
 
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      router.replace('/login');
-    } catch {
-      alert('Logout error');
-    }
+    await signOut(auth);
+    router.replace("/login");
   };
 
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#C4935D" />
-        </View>
+        <ActivityIndicator size="large" color="#C4935D" />
       </SafeAreaView>
     );
   }
@@ -127,304 +170,179 @@ useEffect(() => {
               source={{
                 uri:
                   profileImage ||
-                  'https://i.pinimg.com/474x/08/35/0c/08350cafa4fabb8a6a1be2d9f18f2d88.jpg',
+                  "https://i.pinimg.com/474x/08/35/0c/08350cafa4fabb8a6a1be2d9f18f2d88.jpg",
               }}
               style={styles.profilePic}
             />
-            <View style={styles.cameraOverlay}>
-              <Text style={styles.cameraEmoji}>📷</Text>
-            </View>
           </TouchableOpacity>
 
-          <View style={styles.userInfo}>
-            <Text style={styles.greeting}>Hello, {userName}!</Text>
-            <Text style={styles.subtitle}>Welcome back to FitTrack</Text>
-            <Text style={styles.motivational}>Keep pushing your limits 💪</Text>
+          <View>
+            <Text style={styles.greeting}>Hello, {userName} 👋</Text>
+            <Text style={styles.subtitle}>Let’s stay consistent today</Text>
           </View>
         </View>
 
         {/* SUMMARY */}
-        <View style={styles.summaryContainer}>
-          <Text style={styles.summaryTitle}>Your daily fitness summary</Text>
+        <Text style={styles.summaryTitle}>Today’s Summary</Text>
 
-          <View style={styles.cardsRow}>
-            <View style={[styles.summaryCard, { borderLeftColor: '#5b4334' }]}>
-              <Text style={styles.cardIcon}>👟</Text>
-              <Text style={styles.cardValue}>8,420</Text>
-              <Text style={styles.cardName}>Steps</Text>
-            </View>
+        <View style={styles.cardsRow}>
+          <TouchableOpacity
+            style={[styles.summaryCard, styles.burnedCard]}
+            onPress={() => router.push("/calorieBurnScreen")}
+          >
+            <Text style={styles.cardIcon}>🔥</Text>
+            <Text style={styles.cardValue}>{totalBurnedCalories}</Text>
+            <Text style={styles.cardName}>Calories Burned</Text>
+          </TouchableOpacity>
 
-            <TouchableOpacity
-  style={[styles.summaryCard, { borderLeftColor: "#C4935D" }]}
-  onPress={() => router.push("/calorie-burn")}
-  activeOpacity={0.85}
->
-  <Text style={styles.cardIcon}>🔥</Text>
-  <Text style={styles.cardValue}>{totalBurnedCalories}</Text>
-  <Text style={styles.cardName}>Burned</Text>
-</TouchableOpacity>
-
-
-          </View>
-
-          <View style={styles.cardsRow}>
-            {/* ✅ CLICKABLE INTAKE CARD */}
-            <TouchableOpacity
-              style={[styles.summaryCard, { borderLeftColor: '#DCB083' }]}
-              onPress={() => router.push('/calories')}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.cardIcon}>🍎</Text>
-              <Text style={styles.cardValue}>{totalCalories}</Text>
-              <Text style={styles.cardName}>Intake</Text>
-            </TouchableOpacity>
-
-            <View style={[styles.summaryCard, { borderLeftColor: '#8b7968' }]}>
-              <Text style={styles.cardIcon}>⏱️</Text>
-              <Text style={styles.cardValue}>42</Text>
-              <Text style={styles.cardName}>Workout</Text>
-            </View>
-          </View>
+          <TouchableOpacity
+            style={[styles.summaryCard, styles.intakeCard]}
+            onPress={() => router.push("/calories")}
+          >
+            <Text style={styles.cardIcon}>🍎</Text>
+            <Text style={styles.cardValue}>
+              {totalCalories} / {requiredCalories}
+            </Text>
+            <Text style={styles.cardName}>Calories Intake</Text>
+          </TouchableOpacity>
         </View>
-
-
       </ScrollView>
-              {/* BOTTOM NAV */}
-        <View style={styles.bottomNav}>
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={() => router.push('/workout')}
-          >
-            <Text style={styles.navEmoji}>🏋️</Text>
-            <Text style={styles.navText}>Workout</Text>
-          </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.navButton, pathname === '/dashboard' && styles.navButtonActive]}
-            onPress={() => {
-              if (pathname !== '/dashboard') {
-              router.replace('/dashboard');
-              }
-              }}
->
-  <Text style={styles.navEmoji}>🏠</Text>
-  <Text style={[styles.navText, pathname === '/dashboard' && styles.navTextActive]}>
-    Home
-  </Text>
-</TouchableOpacity>
-
-
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={() => router.push('/profile')}
-          >
-            <Text style={styles.navEmoji}>📊</Text>
-            <Text style={styles.navText}>Profile</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={() => router.push('/settings')}
-          >
-            <Text style={styles.navEmoji}>⚙️</Text>
-            <Text style={styles.navText}>Settings</Text>
-          </TouchableOpacity>
-        </View>
+      {/* BOTTOM NAV */}
+      <View style={styles.bottomNav}>
+        <BottomNavItem
+          label="Workout"
+          emoji="🏋️"
+          active={pathname === "/workout"}
+          onPress={() => router.push("/workout")}
+        />
+        <BottomNavItem
+          label="Home"
+          emoji="🏠"
+          active={pathname === "/dashboard"}
+          onPress={() => router.replace("/dashboard")}
+        />
+        <BottomNavItem
+          label="Profile"
+          emoji="📊"
+          active={pathname === "/profile"}
+          onPress={() => router.push("/profile")}
+        />
+        <BottomNavItem
+          label="Settings"
+          emoji="⚙️"
+          active={pathname === "/settings"}
+          onPress={() => router.push("/settings")}
+        />
+      </View>
     </SafeAreaView>
   );
 }
 
+/* REUSABLE NAV ITEM */
+const BottomNavItem = ({ emoji, label, active, onPress }) => (
+  <TouchableOpacity
+    style={[styles.navItem, active && styles.navItemActive]}
+    onPress={onPress}
+    activeOpacity={0.8}
+  >
+    <Text style={[styles.navEmoji, active && styles.navEmojiActive]}>
+      {emoji}
+    </Text>
+    <Text style={[styles.navText, active && styles.navTextActive]}>{label}</Text>
+  </TouchableOpacity>
+);
+
+/* STYLES */
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f8f5f0',
-  },
-  container: {
-    flex: 1,
-    padding: 16,
-    paddingBottom: 100,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  safeArea: { flex: 1, backgroundColor: "#f8f5f0" },
+  container: { padding: 16, paddingBottom: 120 },
+
   headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 20,
   },
-  appTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#4a3b31',
-    letterSpacing: 1,
-  },
+  appTitle: { fontSize: 28, fontWeight: "800", color: "#4a3b31" },
   logoutButton: {
-    backgroundColor: '#C4935D',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    backgroundColor: "#C4935D",
+    padding: 8,
     borderRadius: 8,
   },
-  logoutButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 12,
-  },
+  logoutButtonText: { color: "#fff", fontSize: 12 },
+
   profileSection: {
-    backgroundColor: '#5b4334',
+    backgroundColor: "#5b4334",
     borderRadius: 14,
-    padding: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 24,
-    elevation: 4,
   },
   profilePic: {
-    width: 75,
-    height: 75,
-    borderRadius: 37,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     marginRight: 14,
-    borderWidth: 3,
-    borderColor: '#C4935D',
-  },
-  cameraOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    right: 14,
-    backgroundColor: '#C4935D',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#5b4334',
+    borderColor: "#C4935D",
   },
-  cameraEmoji: {
-    fontSize: 14,
-  },
-  userInfo: {
-    flex: 1,
-  },
-  greeting: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 3,
-  },
-  subtitle: {
-    fontSize: 12,
-    color: '#d4c4a8',
-    marginBottom: 2,
-  },
-  motivational: {
-    fontSize: 11,
-    color: '#b8a99f',
-  },
-  summaryContainer: {
-    marginBottom: 24,
-  },
+  greeting: { fontSize: 18, fontWeight: "700", color: "#fff" },
+  subtitle: { fontSize: 12, color: "#d4c4a8" },
+
   summaryTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#4a3b31',
+    fontWeight: "700",
     marginBottom: 14,
+    color: "#4a3b31",
   },
-  cardsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
+  cardsRow: { flexDirection: "row", justifyContent: "space-between" },
+
   summaryCard: {
     flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 8,
-    alignItems: 'center',
-    marginHorizontal: 5,
-    borderLeftWidth: 4,
-    elevation: 2,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    alignItems: "center",
+    marginHorizontal: 6,
+    elevation: 3,
   },
-  cardIcon: {
-    fontSize: 26,
-    marginBottom: 5,
-  },
+  burnedCard: { borderTopWidth: 4, borderTopColor: "#e74c3c" },
+  intakeCard: { borderTopWidth: 4, borderTopColor: "#27ae60" },
+
+  cardIcon: { fontSize: 28 },
   cardValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#4a3b31',
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#4a3b31",
+    marginTop: 6,
   },
-  cardName: {
-    fontSize: 11,
-    color: '#8b7968',
-    marginTop: 3,
-    textAlign: 'center',
-  },
-  goalSection: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 18,
-    marginBottom: 24,
-    elevation: 2,
-  },
-  goalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#4a3b31',
-    marginBottom: 8,
-  },
-  goalDescText: {
-    fontSize: 14,
-    color: '#8b7968',
-    marginBottom: 12,
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: '#e6ddd0',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFilled: {
-    height: '100%',
-    width: '72%',
-    backgroundColor: '#C4935D',
-  },
+  cardName: { fontSize: 12, color: "#8b7968", marginTop: 4 },
+
   bottomNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: '#fff',
+    flexDirection: "row",
+    justifyContent: "space-around",
     paddingVertical: 10,
+    backgroundColor: "#fff",
     borderTopLeftRadius: 14,
     borderTopRightRadius: 14,
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
     elevation: 8,
   },
-  navButton: {
-    alignItems: 'center',
-    paddingVertical: 8,
+  navItem: {
+    alignItems: "center",
+    paddingVertical: 6,
     paddingHorizontal: 12,
   },
-  navButtonActive: {
-    backgroundColor: '#f8f5f0',
-    borderRadius: 8,
+  navItemActive: {
+    backgroundColor: "#f8f5f0",
+    borderRadius: 10,
   },
-  navEmoji: {
-    fontSize: 22,
-    marginBottom: 3,
-  },
-  navText: {
-    fontSize: 10,
-    color: '#8b7968',
-    fontWeight: '500',
-  },
-  navTextActive: {
-    color: '#C4935D',
-    fontWeight: '600',
-  },
+  navEmoji: { fontSize: 22, marginBottom: 2 },
+  navEmojiActive: { color: "#C4935D" },
+  navText: { fontSize: 11, color: "#8b7968" },
+  navTextActive: { color: "#C4935D", fontWeight: "600" },
 });

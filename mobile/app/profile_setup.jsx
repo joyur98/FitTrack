@@ -20,6 +20,7 @@ export default function ProfileSetup() {
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
   const [activityLevel, setActivityLevel] = useState("moderate");
+  const [goal, setGoal] = useState("maintain"); // ✅ NEW
   const [loading, setLoading] = useState(false);
 
   const saveProfile = async () => {
@@ -37,6 +38,7 @@ export default function ProfileSetup() {
         height: Number(height),
         weight: Number(weight),
         activityLevel,
+        goal, // ✅ SAVED
         updatedAt: serverTimestamp(),
       });
 
@@ -66,6 +68,7 @@ export default function ProfileSetup() {
           </Text>
 
           <View style={styles.card}>
+            {/* HEIGHT */}
             <Text style={styles.label}>Height (cm)</Text>
             <TextInput
               style={styles.input}
@@ -76,6 +79,7 @@ export default function ProfileSetup() {
               onChangeText={setHeight}
             />
 
+            {/* WEIGHT */}
             <Text style={styles.label}>Weight (kg)</Text>
             <TextInput
               style={styles.input}
@@ -86,6 +90,7 @@ export default function ProfileSetup() {
               onChangeText={setWeight}
             />
 
+            {/* ACTIVITY LEVEL */}
             <Text style={styles.label}>Activity Level</Text>
             <View style={styles.pickerWrapper}>
               <Picker
@@ -109,6 +114,31 @@ export default function ProfileSetup() {
               </Picker>
             </View>
 
+            {/* 🎯 GOAL */}
+            <Text style={styles.label}>Fitness Goal</Text>
+            <View style={styles.pickerWrapper}>
+              <Picker
+                selectedValue={goal}
+                onValueChange={(value) => setGoal(value)}
+                style={styles.picker}
+                dropdownIconColor="#4a3b31"
+              >
+                <Picker.Item
+                  label="Lose Weight 🔻"
+                  value="lose"
+                />
+                <Picker.Item
+                  label="Maintain Weight ⚖️"
+                  value="maintain"
+                />
+                <Picker.Item
+                  label="Gain Weight 🔺"
+                  value="gain"
+                />
+              </Picker>
+            </View>
+
+            {/* BUTTON */}
             <TouchableOpacity
               style={styles.button}
               onPress={saveProfile}
@@ -126,6 +156,7 @@ export default function ProfileSetup() {
   );
 }
 
+/* ===== STYLES ===== */
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
