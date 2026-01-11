@@ -181,14 +181,4 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     elevation: 3,
   },
-  videoTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#4a3b31",
-  },
-  videoDesc: {
-    fontSize: 13,
-    color: "#7a6659",
-    marginTop: 4,
-  },
-});
+})
