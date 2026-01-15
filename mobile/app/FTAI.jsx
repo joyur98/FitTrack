@@ -1,185 +1,159 @@
-import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
+  ScrollView,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useState, useEffect } from "react";
 
-export default function FitTrackAI() {
-  const [messages, setMessages] = useState([
-  {
-    id: "welcome",
-    text: "Hi 👋 Is there anything you want to know about workouts, calories, or fitness?",
-    sender: "ai"
-  }
-]);
+const BACKEND_URL = "http://192.168.1.69:3000/chat";
 
-  const flatListRef = useRef(null);
-  const insets = useSafeAreaInsets();
-  const [input, setInput] = useState("");
+export default function FTAI() {
+  const [message, setMessage] = useState("");
+  const [chat, setChat] = useState([]);
 
+  // Welcome message on first load
   useEffect(() => {
-  flatListRef.current?.scrollToEnd({ animated: true });
-}, [messages]);
-
-  const BACKEND_URL = "http://192.168.1.69:3000/chat";
+    setChat([
+      {
+        role: "bot",
+        text:
+          "☕ Welcome to FitTrack AI!\n\n" +
+          "I can help you with:\n" +
+          "• Calories & food nutrition\n" +
+          "• Workout routines\n\n" +
+          "Try asking:\n" +
+          "Calories in banana\n" +
+          "Best chest workout",
+      },
+    ]);
+  }, []);
 
   const sendMessage = async () => {
-    if (!input.trim()) return;
+    if (!message.trim()) return;
 
-    const userMsg = {
-      id: Date.now().toString(),
-      text: input,
-      sender: "user"
-    };
+    const userText = message;
 
-    setMessages(prev => [...prev, userMsg]);
-    setInput("");
+    setChat((prev) => [...prev, { role: "user", text: userText }]);
+    setMessage("");
 
     try {
       const res = await fetch(BACKEND_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMsg.text })
+        body: JSON.stringify({ message: userText }),
       });
 
       const data = await res.json();
 
-      setMessages(prev => [
+      setChat((prev) => [...prev, { role: "bot", text: data.reply }]);
+    } catch (error) {
+      setChat((prev) => [
         ...prev,
-        {
-          id: Date.now().toString() + "_ai",
-          text: data.reply,
-          sender: "ai"
-        }
-      ]);
-    } catch (err) {
-      setMessages(prev => [
-        ...prev,
-        {
-          id: "err",
-          text: "Unable to connect to FitTrack AI.",
-          sender: "ai"
-        }
+        { role: "bot", text: "☕ Oops! I couldn’t reach the server." },
       ]);
     }
   };
 
   return (
-   <KeyboardAvoidingView
-  style={{ flex: 1 }}
-  behavior={Platform.OS === "ios" ? "padding" : "height"}
->
-  <View style={styles.container}>
+    <View style={styles.container}>
+      <Text style={styles.title}>☕ FitTrack AI</Text>
 
-    {/* Header */}
-    <View style={styles.header}>
-      <Text style={styles.headerText}>FitTrack AI 🤖</Text>
+      <ScrollView
+        style={styles.chatBox}
+        contentContainerStyle={{ paddingBottom: 10 }}
+      >
+        {chat.map((item, index) => (
+          <View
+            key={index}
+            style={[
+              styles.message,
+              item.role === "user" ? styles.userMsg : styles.botMsg,
+            ]}
+          >
+            <Text style={styles.msgText}>{item.text}</Text>
+          </View>
+        ))}
+      </ScrollView>
+
+      <View style={styles.inputRow}>
+        <TextInput
+          style={styles.input}
+          placeholder="Ask about calories or workouts..."
+          placeholderTextColor="#d6c3a3"
+          value={message}
+          onChangeText={setMessage}
+          onSubmitEditing={sendMessage}
+        />
+
+        <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
+          <Text style={styles.sendText}>Send</Text>
+        </TouchableOpacity>
+      </View>
     </View>
-
-    {/* Chat */}
-    <FlatList
-      ref={flatListRef}
-      data={messages}
-      keyExtractor={(item) => item.id}
-      contentContainerStyle={{
-        padding: 10,
-        flexGrow: 1,
-        justifyContent: "flex-end"
-      }}
-      keyboardShouldPersistTaps="handled"
-      renderItem={({ item }) => (
-        <View
-          style={[
-            styles.message,
-            item.sender === "user"
-              ? styles.userMessage
-              : styles.aiMessage
-          ]}
-        >
-          <Text>{item.text}</Text>
-        </View>
-      )}
-    />
-
-    {/* INPUT (NORMAL FLOW, NOT ABSOLUTE) */}
-    <View style={styles.inputContainer}>
-      <TextInput
-        style={styles.input}
-        placeholder="Ask about workouts or calories..."
-        value={input}
-        onChangeText={setInput}
-      />
-      <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
-        <Text style={{ color: "white" }}>Send</Text>
-      </TouchableOpacity>
-    </View>
-
-  </View>
-</KeyboardAvoidingView>
   );
 }
+
+/* ☕ COFFEE THEME STYLES */
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9F9F9"
+    backgroundColor: "#eee4d8", // espresso
+    padding: 12,
   },
-  header: {
-    padding: 15,
-    backgroundColor: "#DCB083",
-    alignItems: "center"
-  },
-  headerText: {
-    fontSize: 18,
+  title: {
+    color: "#2b1b14", // latte foam
+    fontSize: 22,
     fontWeight: "bold",
-    color: "#4a2c1a"
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  chatBox: {
+    flex: 1,
+    marginBottom: 10,
   },
   message: {
-    padding: 10,
+    padding: 12,
+    borderRadius: 14,
     marginVertical: 6,
-    maxWidth: "75%",
-    borderRadius: 8
+    maxWidth: "80%",
   },
-  userMessage: {
+  userMsg: {
     alignSelf: "flex-end",
-    backgroundColor: "#DCF8C6"
+    backgroundColor: "#6f4e37", // mocha
   },
-  aiMessage: {
+  botMsg: {
     alignSelf: "flex-start",
-    backgroundColor: "#EEE"
+    backgroundColor: "#3b2a23", // dark roast
+  },
+  msgText: {
+    color: "#f5efe6", // milk white
+    fontSize: 15,
+    lineHeight: 20,
   },
   inputRow: {
     flexDirection: "row",
-    padding: 8,
-    borderTopWidth: 1,
-    borderColor: "#ddd",
-    backgroundColor: "#fff"
+    alignItems: "center",
   },
   input: {
     flex: 1,
-    borderWidth: 1,
-    borderRadius: 6,
-    padding: 10
+    backgroundColor: "#3b2a23",
+    color: "#f5efe6",
+    padding: 12,
+    borderRadius: 10,
   },
   sendBtn: {
     marginLeft: 8,
-    backgroundColor: "#4CAF50",
-    paddingHorizontal: 16,
-    justifyContent: "center",
-    borderRadius: 6
+    backgroundColor: "#c19a6b", // caramel
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 10,
   },
-  inputContainer: {
-  flexDirection: "row",
-  padding: 8,
-  borderTopWidth: 1,
-  borderColor: "#ddd",
-  backgroundColor: "#fff"
-},
+  sendText: {
+    color: "#2b1b14",
+    fontWeight: "bold",
+  },
 });

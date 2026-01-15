@@ -22,6 +22,7 @@ import {
   onSnapshot,
   doc,
   getDoc,
+  updateDoc,
 } from "firebase/firestore";
 
 export default function Dashboard() {
@@ -37,6 +38,31 @@ export default function Dashboard() {
   const [requiredCalories, setRequiredCalories] = useState(2000);
   const [goal, setGoal] = useState("maintain");
 
+  //Function to upload image to Cloudinary
+  const uploadToCloudinary = async (imageUri) => {
+  const data = new FormData();
+
+  data.append("file", {
+    uri: imageUri,
+    type: "image/jpeg",
+    name: "profile.jpg",
+  });
+  data.append("upload_preset", "Images");
+  data.append("cloud_name", "dvwemoge3");
+
+  const res = await fetch(
+    "https://api.cloudinary.com/v1_1/dvwemoge3/image/upload",
+    {
+      method: "POST",
+      body: data,
+    }
+  );
+
+  const json = await res.json();
+  return json.secure_url;
+};
+
+
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) return;
@@ -46,22 +72,25 @@ export default function Dashboard() {
 
     const fetchUser = async () => {
       const snap = await getDoc(doc(db, "users", user.uid));
-      if (snap.exists()) {
-        const data = snap.data();
-        setUserName(data.fullName);
+     if (snap.exists()) {
+      const data = snap.data();
+      setUserName(data.fullName);
 
-        const bmr = calculateBMR(data);
-        const tdee = calculateTDEE(bmr, data.activityLevel);
-
-        const userGoal = data.goal || "maintain";
-        setGoal(userGoal);
-
-        let finalCalories = tdee;
-        if (userGoal === "lose") finalCalories -= 500;
-        if (userGoal === "gain") finalCalories += 500;
-
-        setRequiredCalories(Math.round(finalCalories));
+      if (data.profileImage) {
+      setProfileImage(data.profileImage);
       }
+
+    const bmr = calculateBMR(data);
+    const tdee = calculateTDEE(bmr, data.activityLevel);
+    const userGoal = data.goal || "maintain";
+    setGoal(userGoal);
+
+    let finalCalories = tdee;
+     if (userGoal === "lose") finalCalories -= 500;
+      if (userGoal === "gain") finalCalories += 500;
+
+    setRequiredCalories(Math.round(finalCalories));
+  }
     };
 
     fetchUser();
@@ -121,18 +150,40 @@ export default function Dashboard() {
   );
 
   const pickProfileImage = async () => {
-    const res = await ImagePicker.launchImageLibraryAsync({
+  try {
+    const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 1,
+      quality: 0.8,
     });
-    if (!res.canceled) setProfileImage(res.assets[0].uri);
-  };
 
-  const handleLogout = async () => {
-    await signOut(auth);
-    router.replace("/login");
-  };
+    if (result.canceled) return;
+
+    setLoading(true);
+
+    const imageUri = result.assets[0].uri;
+
+    // Upload to Cloudinary
+    const imageUrl = await uploadToCloudinary(imageUri);
+
+    // Save URL to Firestore
+    const user = auth.currentUser;
+    if (user) {
+      await updateDoc(doc(db, "users", user.uid), {
+        profileImage: imageUrl,
+      });
+    }
+
+    setProfileImage(imageUrl);
+    setLoading(false);
+  } catch (error) {
+    setLoading(false);
+    Alert.alert("Upload failed", "Could not upload profile image");
+  }
+};
+
+
+
 
   if (loading) {
     return (
@@ -141,6 +192,11 @@ export default function Dashboard() {
       </SafeAreaView>
     );
   }
+  
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.replace("/login");
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
