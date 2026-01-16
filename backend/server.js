@@ -15,7 +15,7 @@ const extractor = await pipeline(
 );
 console.log("MiniLM loaded");
 
-// Precompute intent embeddings
+//Precompute intent embeddings
 console.log("Precomputing intent embeddings...");
 for (const intent of INTENTS) {
   intent.embeddings = [];
@@ -34,7 +34,7 @@ for (const intent of INTENTS) {
 console.log("Intent embeddings ready");
 
 
-// Utility: cosine similarity
+//Cosine Similarity function
 function cosineSimilarity(a, b) {
   const dot = [...a].reduce((sum, v, i) => sum + v * b[i], 0);
   const magA = Math.sqrt(
