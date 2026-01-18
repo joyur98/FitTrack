@@ -9,6 +9,7 @@ export const INTENTS = [
       "Calories in apple",
       "Nutrition of rice",
     ],
+    //Dynamic response based on user input
     response: ({ text }) => {
       for (const food in FOOD_CALORIES) {
         const readableFood = food.replace("_", " ");
@@ -17,6 +18,7 @@ export const INTENTS = [
           return `A ${unit} of ${readableFood} has about ${calories} calories.`;
         }
       }
+      //If no food item is found in the input
       return "Tell me the food name and I’ll give you its calorie information.";
     },
   },
@@ -30,6 +32,7 @@ export const INTENTS = [
       "Back exercises",
       "Full body workout",
     ],
+    //Dynamic response based on user input
     response: ({ text }) => {
       for (const muscle in WORKOUTS) {
         const readableMuscle = muscle.replace("_", " ");
@@ -44,7 +47,7 @@ Exercises:
           `.trim();
         }
       }
-
+      //If no muscle group is found in the input
       return "Tell me which body part you want a workout for (chest, abs, legs, etc.).";
     },
   },

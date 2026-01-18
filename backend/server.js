@@ -3,7 +3,6 @@ import cors from "cors";
 import { pipeline } from "@xenova/transformers";
 import { INTENTS } from "./intents.js";
 
-const BACKEND_URL = "http://192.168.1.69:3000/chat";
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -15,7 +14,7 @@ const extractor = await pipeline(
 );
 console.log("MiniLM loaded");
 
-// Precompute intent embeddings
+//Precompute intent embeddings
 console.log("Precomputing intent embeddings...");
 for (const intent of INTENTS) {
   intent.embeddings = [];
@@ -34,7 +33,7 @@ for (const intent of INTENTS) {
 console.log("Intent embeddings ready");
 
 
-// Utility: cosine similarity
+//Cosine Similarity function
 function cosineSimilarity(a, b) {
   const dot = [...a].reduce((sum, v, i) => sum + v * b[i], 0);
   const magA = Math.sqrt(
@@ -88,6 +87,7 @@ res.json({ reply });
 });
 
 
-app.listen(3000, () => {
+app.listen(3000, "0.0.0.0", () => {
   console.log("FitTrack AI running on port 3000");
 });
+
