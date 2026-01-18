@@ -5,16 +5,20 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
+  SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const BACKEND_URL = "http://192.168.1.69:3000/chat";
 
 export default function FTAI() {
   const [message, setMessage] = useState("");
   const [chat, setChat] = useState([]);
+  const scrollRef = useRef(null);
 
-  // Welcome message on first load
+  // Welcome message
   useEffect(() => {
     setChat([
       {
@@ -30,6 +34,11 @@ export default function FTAI() {
       },
     ]);
   }, []);
+
+  // Auto-scroll on new message
+  useEffect(() => {
+    scrollRef.current?.scrollToEnd({ animated: true });
+  }, [chat]);
 
   const sendMessage = async () => {
     if (!message.trim()) return;
@@ -47,9 +56,8 @@ export default function FTAI() {
       });
 
       const data = await res.json();
-
       setChat((prev) => [...prev, { role: "bot", text: data.reply }]);
-    } catch (error) {
+    } catch {
       setChat((prev) => [
         ...prev,
         { role: "bot", text: "☕ Oops! I couldn’t reach the server." },
@@ -58,102 +66,131 @@ export default function FTAI() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>☕ FitTrack AI</Text>
-
-      <ScrollView
-        style={styles.chatBox}
-        contentContainerStyle={{ paddingBottom: 10 }}
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
       >
-        {chat.map((item, index) => (
-          <View
-            key={index}
-            style={[
-              styles.message,
-              item.role === "user" ? styles.userMsg : styles.botMsg,
-            ]}
-          >
-            <Text style={styles.msgText}>{item.text}</Text>
-          </View>
-        ))}
-      </ScrollView>
+        <Text style={styles.title}>☕ FitTrack AI</Text>
 
-      <View style={styles.inputRow}>
-        <TextInput
-          style={styles.input}
-          placeholder="Ask about calories or workouts..."
-          placeholderTextColor="#d6c3a3"
-          value={message}
-          onChangeText={setMessage}
-          onSubmitEditing={sendMessage}
-        />
+        <ScrollView
+          ref={scrollRef}
+          style={styles.chatBox}
+          contentContainerStyle={styles.chatContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {chat.map((item, index) => (
+            <View
+              key={index}
+              style={[
+                styles.message,
+                item.role === "user" ? styles.userMsg : styles.botMsg,
+              ]}
+            >
+              <Text style={styles.msgText}>{item.text}</Text>
+            </View>
+          ))}
+        </ScrollView>
 
-        <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
-          <Text style={styles.sendText}>Send</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+        {/* Input */}
+        <View style={styles.inputRow}>
+          <TextInput
+            style={styles.input}
+            placeholder="Ask about calories or workouts…"
+            placeholderTextColor="#d6c3a3"
+            value={message}
+            onChangeText={setMessage}
+            onSubmitEditing={sendMessage}
+            returnKeyType="send"
+          />
+
+          <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
+            <Text style={styles.sendText}>Send</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
-/* ☕ COFFEE THEME STYLES */
+/* ☕ iPhone-Optimized Coffee Theme */
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#eee4d8",
+  },
   container: {
     flex: 1,
-    backgroundColor: "#eee4d8", // espresso
-    padding: 12,
+    paddingHorizontal: 14,
   },
   title: {
-    color: "#2b1b14", // latte foam
-    fontSize: 22,
-    fontWeight: "bold",
+    color: "#2b1b14",
+    fontSize: 24,
+    fontWeight: "800",
     textAlign: "center",
-    marginBottom: 10,
+    marginVertical: 12,
   },
+
   chatBox: {
     flex: 1,
-    marginBottom: 10,
   },
+  chatContent: {
+    paddingBottom: 20,
+  },
+
   message: {
-    padding: 12,
-    borderRadius: 14,
+    padding: 14,
+    borderRadius: 18,
     marginVertical: 6,
-    maxWidth: "80%",
+    maxWidth: "78%",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
   },
   userMsg: {
     alignSelf: "flex-end",
-    backgroundColor: "#6f4e37", // mocha
+    backgroundColor: "#6f4e37",
+    borderBottomRightRadius: 6,
   },
   botMsg: {
     alignSelf: "flex-start",
-    backgroundColor: "#3b2a23", // dark roast
+    backgroundColor: "#3b2a23",
+    borderBottomLeftRadius: 6,
   },
   msgText: {
-    color: "#f5efe6", // milk white
+    color: "#f5efe6",
     fontSize: 15,
-    lineHeight: 20,
+    lineHeight: 21,
   },
+
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
+    paddingVertical: 8,
+    marginBottom: Platform.OS === "ios" ? 6 : 0,
   },
   input: {
     flex: 1,
     backgroundColor: "#3b2a23",
     color: "#f5efe6",
-    padding: 12,
-    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    fontSize: 15,
   },
   sendBtn: {
     marginLeft: 8,
-    backgroundColor: "#c19a6b", // caramel
+    backgroundColor: "#c19a6b",
     paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderRadius: 10,
+    paddingHorizontal: 20,
+    borderRadius: 14,
   },
   sendText: {
     color: "#2b1b14",
-    fontWeight: "bold",
+    fontWeight: "700",
+    fontSize: 15,
   },
 });
