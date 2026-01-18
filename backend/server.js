@@ -3,7 +3,6 @@ import cors from "cors";
 import { pipeline } from "@xenova/transformers";
 import { INTENTS } from "./intents.js";
 
-const BACKEND_URL = "http://192.168.1.69:3000/chat";
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -88,6 +87,7 @@ res.json({ reply });
 });
 
 
-app.listen(3000, () => {
+app.listen(3000, "0.0.0.0", () => {
   console.log("FitTrack AI running on port 3000");
 });
+
