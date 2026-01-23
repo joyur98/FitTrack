@@ -7,6 +7,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+//For fetching the url from env variables
+const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3000/chat";
+
+console.log("Using backend URL:", BACKEND_URL);
+
 console.log("Loading MiniLM...");
 const extractor = await pipeline(
   "feature-extraction",
