@@ -1,4 +1,3 @@
-// Import UI components from React Native
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -11,77 +10,189 @@ import {
   TextInput,
   Modal,
   Alert,
+  Dimensions,
+  Image,
 } from "react-native";
-
-// Import navigation tool from Expo Router
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-
-// Import Firebase auth and Firestore
 import { auth } from "./firebaseConfig";
 import { signOut, updateProfile } from "firebase/auth";
-import { db } from "./firebaseConfig"; // Make sure to export db from firebaseConfig
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { db } from "./firebaseConfig";
+import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
 
-// Define and export the main ProfileScreen component
+const { width } = Dimensions.get("window");
+
 export default function ProfileScreen() {
-  // State to store user data
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [newName, setNewName] = useState("");
+  const [profileImage, setProfileImage] = useState(null);
+  const [userData, setUserData] = useState({
+    weight: "55 kg",
+    height: "175 cm",
+    age: "17",
+    heartRate: "70 bpm",
+    calories: "2800 kcal",
+    workouts: "50 hrs",
+    productivity: "48 hrs",
+  });
 
-  // Array of avatar options
-  const avatars = ['👨', '👩', '🧑', '👨‍💼', '👩‍💼', '👨‍🎓', '👩‍🎓', '🧔', '👨‍🦰', '👩‍🦰', '👨‍🦱', '👩‍🦱', '👨‍🦳', '👩‍🦳', '🧑‍🦰', '🧑‍🦱'];
-  
-  // Get a consistent avatar based on email
-  const getAvatarForUser = (email) => {
-    if (!email) return '👤';
-    // Use email to generate a consistent index
-    const hash = email.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return avatars[hash % avatars.length];
-  };
-
-  // Fetch user name from Firestore
-  const fetchUserName = async (userId) => {
+  // Function to upload image to Cloudinary
+  const uploadToCloudinary = async (imageUri) => {
     try {
-      const userDocRef = doc(db, "users", userId);
-      const userDoc = await getDoc(userDocRef);
+      const data = new FormData();
+      data.append("file", {
+        uri: imageUri,
+        type: "image/jpeg",
+        name: "profile.jpg",
+      });
+      data.append("upload_preset", "Images");
+      data.append("cloud_name", "dvwemoge3");
+
+      const res = await fetch(
+        "https://api.cloudinary.com/v1_1/dvwemoge3/image/upload",
+        {
+          method: "POST",
+          body: data,
+        }
+      );
+
+      if (!res.ok) throw new Error("Upload failed");
       
-      if (userDoc.exists()) {
-        return userDoc.data().displayName || null;
-      }
-      return null;
+      const json = await res.json();
+      return json.secure_url;
     } catch (error) {
-      console.error("Error fetching user name:", error);
-      return null;
+      console.error("Cloudinary upload error:", error);
+      throw error;
     }
   };
 
-  // Save user name to Firestore and update auth profile
+  const pickProfileImage = async () => {
+    try {
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Sorry, we need camera roll permissions to upload profile images.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+
+      setLoading(true);
+      const imageUri = result.assets[0].uri;
+
+      // Upload to Cloudinary
+      const imageUrl = await uploadToCloudinary(imageUri);
+
+      // Save URL to Firestore
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        await updateDoc(doc(db, "users", currentUser.uid), {
+          profileImage: imageUrl,
+        });
+        
+        // Update auth profile
+        await updateProfile(currentUser, {
+          photoURL: imageUrl
+        });
+        
+        setProfileImage(imageUrl);
+        Alert.alert("Success", "Profile picture updated!");
+      }
+    } catch (error) {
+      Alert.alert("Upload failed", "Could not upload profile image");
+      console.error("Image picker error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUserData = async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      router.replace("/login");
+      return;
+    }
+
+    try {
+      const userDocRef = doc(db, "users", currentUser.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        
+        // Get display name in priority: Firestore fullName > auth displayName > default
+        const displayName = data.fullName || currentUser.displayName || "User";
+        
+        setUser({ 
+          name: displayName, 
+          email: currentUser.email 
+        });
+        
+        setNewName(displayName);
+        setProfileImage(data.profileImage || currentUser.photoURL);
+        
+        // Update user data with actual values from Firestore
+        setUserData({
+          weight: data.weight ? `${data.weight} kg` : "55 kg",
+          height: data.height ? `${data.height} cm` : "175 cm",
+          age: data.age ? data.age.toString() : "17",
+          heartRate: "70 bpm", // Default or calculate
+          calories: data.requiredCalories ? `${data.requiredCalories} kcal` : "2800 kcal",
+          workouts: data.totalWorkouts ? `${data.totalWorkouts} workouts` : "0 workouts",
+          productivity: "48 hrs", // Default
+        });
+      } else {
+        // Create user document if it doesn't exist
+        await setDoc(userDocRef, {
+          uid: currentUser.uid,
+          email: currentUser.email,
+          fullName: currentUser.displayName || "",
+          profileImage: currentUser.photoURL || null,
+          createdAt: new Date(),
+          totalWorkouts: 0,
+        });
+        
+        setUser({ 
+          name: currentUser.displayName || "User", 
+          email: currentUser.email 
+        });
+        setNewName(currentUser.displayName || "User");
+        setProfileImage(currentUser.photoURL);
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      Alert.alert("Error", "Failed to load profile data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const saveUserName = async (name) => {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
-
+    
     try {
-      // Update Firebase Auth profile
-      await updateProfile(currentUser, {
-        displayName: name,
-      });
-
-      // Update Firestore document
+      // Update auth profile
+      await updateProfile(currentUser, { displayName: name });
+      
+      // Update Firestore
       const userDocRef = doc(db, "users", currentUser.uid);
-      await setDoc(userDocRef, {
-        displayName: name,
-        email: currentUser.email,
-        updatedAt: new Date().toISOString(),
-      }, { merge: true });
-
-      // Update local state
-      setUser({
-        name: name,
-        email: currentUser.email,
+      await updateDoc(userDocRef, {
+        fullName: name,
+        updatedAt: new Date(),
       });
-
+      
+      // Update local state
+      setUser({ ...user, name: name });
       Alert.alert("Success", "Profile updated successfully!");
     } catch (error) {
       console.error("Error saving user name:", error);
@@ -89,37 +200,15 @@ export default function ProfileScreen() {
     }
   };
 
-  // Load user data when component mounts
   useEffect(() => {
-    const loadUserData = async () => {
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        // Try to get name from Firestore first
-        const firestoreName = await fetchUserName(currentUser.uid);
-        
-        // Fallback to Auth displayName or email
-        const displayName = firestoreName || 
-                           currentUser.displayName || 
-                           currentUser.email.split('@')[0];
-        
-        setUser({
-          name: displayName,
-          email: currentUser.email,
-        });
-      }
-      setLoading(false);
-    };
-
-    loadUserData();
+    fetchUserData();
   }, []);
 
-  // Handle edit profile
   const handleEditProfile = () => {
-    setNewName(user?.name || "");
+    setNewName(user?.name || "User");
     setEditModalVisible(true);
   };
 
-  // Handle save name
   const handleSaveName = async () => {
     if (newName.trim()) {
       setEditModalVisible(false);
@@ -129,188 +218,128 @@ export default function ProfileScreen() {
     }
   };
 
-  // Handle logout
   const handleLogout = async () => {
     try {
       await signOut(auth);
       router.replace("/login");
     } catch (error) {
       console.error("Logout error:", error);
+      Alert.alert("Error", "Failed to logout");
     }
   };
 
-  // Show loading spinner while fetching user data
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#6f4e37" />
+          <Text style={{ marginTop: 10, color: "#6f4e37" }}>Loading profile...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  // Sample workout history data
-  const workoutHistory = [
-    { id: 1, name: "Full Body Workout", date: "Dec 28, 2025", duration: "45 min", calories: 350 },
-    { id: 2, name: "Upper Body Strength", date: "Dec 26, 2025", duration: "40 min", calories: 300 },
-    { id: 3, name: "Cardio Blast", date: "Dec 24, 2025", duration: "30 min", calories: 280 },
-  ];
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
-        
-        {/* Profile Header Section */}
+        {/* Profile Header */}
         <View style={styles.profileHeader}>
-          {/* Profile Avatar - Dynamic based on user email */}
-          <View style={styles.profilePicture}>
-            <Text style={styles.avatar}>
-              {user ? getAvatarForUser(user.email) : '👤'}
-            </Text>
-          </View>
+          <View style={styles.statusIndicator} />
           
-          {/* User Name - Display logged-in user's info */}
+          <TouchableOpacity onPress={pickProfileImage}>
+            {profileImage ? (
+              <Image
+                source={{ uri: profileImage }}
+                style={styles.profileImage}
+              />
+            ) : (
+              <View style={styles.profilePicture}>
+                <Text style={styles.avatar}>👤</Text>
+              </View>
+            )}
+            <View style={styles.cameraIconOverlay}>
+              <Text style={styles.cameraIcon}>📷</Text>
+            </View>
+          </TouchableOpacity>
+          
           <Text style={styles.userName}>{user?.name || "User"}</Text>
-          <Text style={styles.userEmail}>{user?.email || "No email"}</Text>
+          <Text style={styles.userEmail}>{user?.email || "user@example.com"}</Text>
           
-          {/* Edit Profile Button */}
           <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
             <Text style={styles.editButtonText}>✏️ Edit Profile</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Stats Section */}
-        <View style={styles.statsContainer}>
-          <Text style={styles.sectionTitle}>This Month</Text>
-          
-          <View style={styles.statsGrid}>
-            {/* Total Workouts Stat */}
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>12</Text>
-              <Text style={styles.statLabel}>Workouts</Text>
+        {/* Stats Row */}
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <View style={styles.statIconContainer}>
+              <Text style={styles.statIcon}>⚖️</Text>
             </View>
-            
-            {/* Total Time Stat */}
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>8.5h</Text>
-              <Text style={styles.statLabel}>Total Time</Text>
+            <Text style={styles.statValue}>{userData.weight}</Text>
+            <Text style={styles.statLabel}>Weight</Text>
+          </View>
+          <View style={styles.statItem}>
+            <View style={styles.statIconContainer}>
+              <Text style={styles.statIcon}>📏</Text>
             </View>
-            
-            {/* Calories Burned Stat */}
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>3,840</Text>
-              <Text style={styles.statLabel}>Calories</Text>
+            <Text style={styles.statValue}>{userData.height}</Text>
+            <Text style={styles.statLabel}>Height</Text>
+          </View>
+          <View style={styles.statItem}>
+            <View style={styles.statIconContainer}>
+              <Text style={styles.statIcon}>🎂</Text>
             </View>
-            
-            {/* Streak Stat */}
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>5🔥</Text>
-              <Text style={styles.statLabel}>Day Streak</Text>
-            </View>
+            <Text style={styles.statValue}>{userData.age}</Text>
+            <Text style={styles.statLabel}>Age</Text>
           </View>
         </View>
 
-        {/* Weekly Progress Section */}
-        <View style={styles.progressSection}>
-          <Text style={styles.sectionTitle}>Weekly Progress</Text>
-          
-          <View style={styles.progressBar}>
-            <View style={styles.progressFill} />
+        {/* Vital Stats Row */}
+        <View style={styles.vitalsRow}>
+          <View style={styles.vitalItem}>
+            <Text style={styles.vitalIcon}>❤️</Text>
+            <Text style={styles.vitalValue}>{userData.heartRate}</Text>
           </View>
-          
-          <Text style={styles.progressText}>4 of 5 workouts completed this week</Text>
-        </View>
-
-        {/* Recent Workouts Section */}
-        <View style={styles.historySection}>
-          <View style={styles.historyHeader}>
-            <Text style={styles.sectionTitle}>Recent Workouts</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Map through workout history */}
-          {workoutHistory.map((workout) => (
-            <View key={workout.id} style={styles.historyCard}>
-              <View style={styles.historyLeft}>
-                <Text style={styles.historyName}>{workout.name}</Text>
-                <Text style={styles.historyDate}>{workout.date}</Text>
-              </View>
-              
-              <View style={styles.historyRight}>
-                <Text style={styles.historyDuration}>⏱ {workout.duration}</Text>
-                <Text style={styles.historyCalories}>🔥 {workout.calories} kcal</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        {/* Achievements Section */}
-        <View style={styles.achievementsSection}>
-          <Text style={styles.sectionTitle}>Achievements</Text>
-          
-          <View style={styles.achievementsGrid}>
-            <View style={styles.achievementBadge}>
-              <Text style={styles.achievementIcon}>🏆</Text>
-              <Text style={styles.achievementText}>First Workout</Text>
-            </View>
-            
-            <View style={styles.achievementBadge}>
-              <Text style={styles.achievementIcon}>⭐</Text>
-              <Text style={styles.achievementText}>7 Day Streak</Text>
-            </View>
-            
-            <View style={styles.achievementBadge}>
-              <Text style={styles.achievementIcon}>💪</Text>
-              <Text style={styles.achievementText}>10 Workouts</Text>
-            </View>
-            
-            <View style={[styles.achievementBadge, styles.achievementLocked]}>
-              <Text style={styles.achievementIcon}>🔒</Text>
-              <Text style={styles.achievementText}>30 Day Streak</Text>
-            </View>
+          <View style={styles.vitalItem}>
+            <Text style={styles.vitalIcon}>🔥</Text>
+            <Text style={styles.vitalValue}>{userData.calories}</Text>
           </View>
         </View>
 
-        {/* Action Buttons Section */}
+        {/* Daily Stats */}
+        <View style={styles.dailyStats}>
+          <View style={styles.statCard}>
+            <Text style={styles.statIcon}>💪</Text>
+            <Text style={styles.statBigNumber}>{userData.workouts}</Text>
+            <Text style={styles.statLabelSmall}>Workouts</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statIcon}>📈</Text>
+            <Text style={styles.statBigNumber}>{userData.productivity}</Text>
+            <Text style={styles.statLabelSmall}>Productivity</Text>
+          </View>
+        </View>
+
+        {/* Action Buttons */}
         <View style={styles.actionsSection}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => router.push("/statistics")}
-          >
+          <TouchableOpacity style={styles.actionButton} onPress={() => router.push("/statistics")}>
             <Text style={styles.actionButtonText}>📊 Full Statistics</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => router.push("/goals")}
-          >
+          <TouchableOpacity style={styles.actionButton} onPress={() => router.push("/goals")}>
             <Text style={styles.actionButtonText}>🎯 Goals</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.logoutButton]}
-            onPress={handleLogout}
-          >
+          <TouchableOpacity style={[styles.actionButton, styles.logoutButton]} onPress={handleLogout}>
             <Text style={styles.logoutText}>🚪 Logout</Text>
           </TouchableOpacity>
         </View>
-
       </ScrollView>
 
-      {/* Edit Name Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={editModalVisible}
-        onRequestClose={() => setEditModalVisible(false)}
-      >
+      {/* Edit Modal */}
+      <Modal animationType="slide" transparent={true} visible={editModalVisible} onRequestClose={() => setEditModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Edit Profile</Text>
-            
             <TextInput
               style={styles.input}
               placeholder="Enter your name"
@@ -318,19 +347,11 @@ export default function ProfileScreen() {
               onChangeText={setNewName}
               autoFocus={true}
             />
-            
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setEditModalVisible(false)}
-              >
+              <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setEditModalVisible(false)}>
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.saveButton]}
-                onPress={handleSaveName}
-              >
+              <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleSaveName}>
                 <Text style={styles.saveButtonText}>Save</Text>
               </TouchableOpacity>
             </View>
@@ -341,335 +362,300 @@ export default function ProfileScreen() {
   );
 }
 
-// Create and define all styles with coffee color theme
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f4ebe0", // Light coffee cream
+    backgroundColor: "#f4ebe0",
   },
-  
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
-  
   container: {
     padding: 24,
     paddingBottom: 40,
   },
-  
-  // Profile Header Styles
   profileHeader: {
     alignItems: "center",
-    marginBottom: 30,
+    marginBottom: 32,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 24,
+    padding: 24,
+    elevation: 4,
   },
-  
+  statusIndicator: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#d7ccc8",
+    position: "absolute",
+    top: 20,
+    right: 24,
+    zIndex: 1,
+    borderWidth: 3,
+    borderColor: "#f4ebe0",
+  },
   profilePicture: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "#6f4e37", // Coffee brown
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: "#6f4e37",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 16,
-    elevation: 4,
+    elevation: 12,
+    shadowColor: "#3e2723",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    borderWidth: 4,
+    borderColor: "rgba(215,204,200,0.3)",
   },
-  
-  avatar: {
-    fontSize: 50,
-  },
-  
-  userName: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#3e2723", // Dark coffee
-    marginBottom: 4,
-  },
-  
-  userEmail: {
-    fontSize: 15,
-    color: "#795548", // Medium coffee
+  profileImage: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
     marginBottom: 16,
+    borderWidth: 4,
+    borderColor: "rgba(215,204,200,0.3)",
   },
-  
-  editButton: {
-    backgroundColor: "#d7ccc8", // Light coffee tan
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 20,
-    elevation: 2,
-  },
-  
-  editButtonText: {
-    color: "#3e2723", // Dark coffee
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  
-  // Stats Section Styles
-  statsContainer: {
-    marginBottom: 30,
-  },
-  
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#3e2723", // Dark coffee
-    marginBottom: 16,
-  },
-  
-  statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-  
-  statCard: {
-    backgroundColor: "#d7ccc8", // Light coffee tan
-    borderRadius: 16,
-    padding: 20,
-    width: "48%",
-    marginBottom: 12,
+  cameraIconOverlay: {
+    position: "absolute",
+    bottom: 20,
+    right: 0,
+    backgroundColor: "#6f4e37",
+    borderRadius: 12,
+    width: 30,
+    height: 30,
+    justifyContent: "center",
     alignItems: "center",
-    elevation: 3,
+    borderWidth: 2,
+    borderColor: "#fff",
   },
-  
-  statNumber: {
-    fontSize: 32,
+  cameraIcon: {
+    fontSize: 14,
+    color: "#fff",
+  },
+  avatar: {
+    fontSize: 55,
+  },
+  userName: {
+    fontSize: 30,
     fontWeight: "800",
-    color: "#3e2723", // Dark coffee
-    marginBottom: 4,
-  },
-  
-  statLabel: {
-    fontSize: 14,
-    color: "#795548", // Medium coffee
-    fontWeight: "600",
-  },
-  
-  // Progress Section Styles
-  progressSection: {
-    backgroundColor: "#d7ccc8", // Light coffee tan
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 30,
-    elevation: 3,
-  },
-  
-  progressBar: {
-    height: 12,
-    backgroundColor: "#bcaaa4", // Medium coffee tan
-    borderRadius: 6,
-    overflow: "hidden",
-    marginBottom: 12,
-  },
-  
-  progressFill: {
-    height: "100%",
-    width: "80%",
-    backgroundColor: "#6f4e37", // Coffee brown
-    borderRadius: 6,
-  },
-  
-  progressText: {
-    fontSize: 14,
-    color: "#795548", // Medium coffee
+    color: "#3e2723",
+    marginBottom: 8,
     textAlign: "center",
   },
-  
-  // History Section Styles
-  historySection: {
-    marginBottom: 30,
+  userEmail: {
+    fontSize: 16,
+    color: "#795548",
+    fontWeight: "500",
+    marginBottom: 20,
+    opacity: 0.9,
   },
-  
-  historyHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
+  editButton: {
+    backgroundColor: "rgba(215,204,200,0.8)",
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 25,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "rgba(111,78,55,0.2)",
   },
-  
-  seeAllText: {
-    color: "#6f4e37", // Coffee brown
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  
-  historyCard: {
-    backgroundColor: "#d7ccc8", // Light coffee tan
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    elevation: 2,
-  },
-  
-  historyLeft: {
-    flex: 1,
-  },
-  
-  historyName: {
+  editButtonText: {
+    color: "#3e2723",
     fontSize: 16,
     fontWeight: "700",
-    color: "#3e2723", // Dark coffee
-    marginBottom: 4,
   },
-  
-  historyDate: {
-    fontSize: 13,
-    color: "#795548", // Medium coffee
-  },
-  
-  historyRight: {
-    alignItems: "flex-end",
-  },
-  
-  historyDuration: {
-    fontSize: 13,
-    color: "#795548", // Medium coffee
-    marginBottom: 2,
-  },
-  
-  historyCalories: {
-    fontSize: 13,
-    color: "#795548", // Medium coffee
-  },
-  
-  // Achievements Section Styles
-  achievementsSection: {
-    marginBottom: 30,
-  },
-  
-  achievementsGrid: {
+  statsRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
     justifyContent: "space-between",
+    marginBottom: 24,
   },
-  
-  achievementBadge: {
-    backgroundColor: "#d7ccc8", // Light coffee tan
-    borderRadius: 16,
-    padding: 16,
-    width: "48%",
+  statItem: {
+    flex: 1,
+    alignItems: "center",
+    marginHorizontal: 6,
+  },
+  statIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(215,204,200,0.7)",
+    justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
-    elevation: 3,
+    elevation: 6,
+    shadowColor: "#3e2723",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
   },
-  
-  achievementLocked: {
-    opacity: 0.5,
+  statIcon: {
+    fontSize: 26,
   },
-  
-  achievementIcon: {
-    fontSize: 36,
-    marginBottom: 8,
+  statValue: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#6f4e37",
+    marginBottom: 6,
   },
-  
-  achievementText: {
+  statLabel: {
     fontSize: 13,
-    fontWeight: "600",
-    color: "#3e2723", // Dark coffee
-    textAlign: "center",
+    color: "#8d6e63",
+    fontWeight: "700",
   },
-  
-  // Actions Section Styles
+  vitalsRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: 28,
+    padding: 24,
+    backgroundColor: "rgba(215,204,200,0.6)",
+    borderRadius: 24,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: "rgba(111,78,55,0.2)",
+  },
+  vitalItem: {
+    alignItems: "center",
+  },
+  vitalIcon: {
+    fontSize: 32,
+    marginBottom: 6,
+  },
+  vitalValue: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#3e2723",
+  },
+  dailyStats: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 32,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: "rgba(215,204,200,0.5)",
+    borderRadius: 24,
+    padding: 28,
+    alignItems: "center",
+    marginHorizontal: 10,
+    elevation: 8,
+    shadowColor: "#3e2723",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(111,78,55,0.3)",
+  },
+  statBigNumber: {
+    fontSize: 36,
+    fontWeight: "900",
+    color: "#6f4e37",
+    marginTop: 8,
+    marginBottom: 6,
+    textShadowColor: "rgba(62,39,35,0.3)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  statLabelSmall: {
+    fontSize: 15,
+    color: "#8d6e63",
+    fontWeight: "700",
+  },
   actionsSection: {
     marginBottom: 20,
   },
-  
   actionButton: {
-    backgroundColor: "#6f4e37", // Coffee brown
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 12,
-    elevation: 3,
+    backgroundColor: "#6f4e37",
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    elevation: 6,
+    shadowColor: "#3e2723",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
   },
-  
   actionButtonText: {
-    fontSize: 16,
-    color: "#ffffff",
-    fontWeight: "600",
+    fontSize: 18,
+    color: "#f5f5f5",
+    fontWeight: "700",
     textAlign: "center",
   },
-  
   logoutButton: {
-    backgroundColor: "#bcaaa4", // Medium coffee tan
+    backgroundColor: "#bcaaa4",
   },
-  
   logoutText: {
-    fontSize: 16,
-    color: "#5d4037", // Darker coffee brown
-    fontWeight: "600",
+    fontSize: 18,
+    color: "#5d4037",
+    fontWeight: "700",
     textAlign: "center",
   },
-
-  // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
     justifyContent: "center",
     alignItems: "center",
   },
-  
   modalContent: {
-    backgroundColor: "#f4ebe0",
-    borderRadius: 20,
-    padding: 24,
-    width: "85%",
-    elevation: 5,
+    backgroundColor: "rgba(244,235,224,0.95)",
+    borderRadius: 24,
+    padding: 32,
+    width: "88%",
+    elevation: 12,
+    shadowColor: "#3e2723",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(111,78,55,0.3)",
   },
-  
   modalTitle: {
-    fontSize: 22,
-    fontWeight: "700",
+    fontSize: 24,
+    fontWeight: "800",
     color: "#3e2723",
-    marginBottom: 20,
+    marginBottom: 24,
     textAlign: "center",
   },
-  
   input: {
     backgroundColor: "#ffffff",
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: "#d7ccc8",
-    marginBottom: 20,
+    borderRadius: 16,
+    padding: 18,
+    fontSize: 18,
+    borderWidth: 2,
+    borderColor: "rgba(215,204,200,0.5)",
+    marginBottom: 24,
+    elevation: 2,
   },
-  
   modalButtons: {
     flexDirection: "row",
     justifyContent: "space-between",
   },
-  
   modalButton: {
     flex: 1,
-    padding: 14,
-    borderRadius: 12,
-    marginHorizontal: 6,
+    padding: 16,
+    borderRadius: 16,
+    marginHorizontal: 8,
+    elevation: 2,
   },
-  
   cancelButton: {
-    backgroundColor: "#bcaaa4",
+    backgroundColor: "rgba(188,170,164,0.8)",
   },
-  
   cancelButtonText: {
     color: "#5d4037",
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 18,
+    fontWeight: "700",
     textAlign: "center",
   },
-  
   saveButton: {
     backgroundColor: "#6f4e37",
   },
-  
   saveButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600",
+    color: "#f5f5f5",
+    fontSize: 18,
+    fontWeight: "700",
     textAlign: "center",
   },
 });
