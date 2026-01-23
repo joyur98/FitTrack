@@ -8,7 +8,7 @@ app.use(cors());
 app.use(express.json());
 
 //For fetching the url from env variables
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3000/chat";
+const BACKEND_URL = "http://192.168.1.82:3000/chat";
 
 console.log("Using backend URL:", BACKEND_URL);
 
