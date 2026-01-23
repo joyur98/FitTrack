@@ -7,6 +7,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const BACKEND_URL = "https://reed-employment-match-warner.trycloudflare.com";
+
 console.log("Loading MiniLM...");
 const extractor = await pipeline(
   "feature-extraction",
