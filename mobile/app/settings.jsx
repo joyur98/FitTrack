@@ -1,3 +1,4 @@
+// settings.jsx - UPDATED WITH NEPAL EMERGENCY & CHANGE PASSWORD
 import { 
   StyleSheet,
   Text,
@@ -418,6 +419,15 @@ export default function Settings() {
             onValueChange={setNotificationsEnabled} 
             trackColor={{ false: '#d9c9b8', true: '#4a2c1a'}} 
             thumbColor={notificationsEnabled ? '#fff' : '#f4f3f4'} 
+          />
+        </View>
+        <View style={styles.settingItem}>
+          <Text style={styles.settingText}>Dark Mode</Text>
+          <Switch 
+            value={darkModeEnabled} 
+            onValueChange={setDarkModeEnabled} 
+            trackColor={{ false: '#d9c9b8', true: '#4a2c1a'}} 
+            thumbColor={darkModeEnabled ? '#fff' : '#f4f3f4'} 
           />
         </View>
         <View style={[styles.settingItem, styles.lastItem]}>
