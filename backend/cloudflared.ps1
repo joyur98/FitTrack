@@ -1,5 +1,5 @@
 # Start cloudflared quick tunnel in background and capture URL
-$cloudflaredProcess = Start-Process -FilePath "C:\Projects\Try\cloudflared.exe" `
+$cloudflaredProcess = Start-Process -FilePath "../cloudflared.exe" `
     -ArgumentList "tunnel", "--url", "http://localhost:3000", "--no-autoupdate" `
     -RedirectStandardOutput "cloudflared.log" -PassThru
 
