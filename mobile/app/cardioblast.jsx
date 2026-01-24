@@ -13,7 +13,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { auth, db } from "./firebaseConfig";
-import { collection, addDoc, serverTimestamp, query, where, onSnapshot, getDocs } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, where, onSnapshot, getDocs, doc, getDoc } from "firebase/firestore";
 import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
@@ -82,11 +82,115 @@ const workouts = [
   },
 ];
 
+// Create a separate component for workout items
+const WorkoutItem = React.memo(({ 
+  workout, 
+  index, 
+  isCompleted, 
+  onToggleComplete,
+  currentTheme,
+  isDarkMode,
+  isThemeLoading
+}) => {
+  const itemAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (isThemeLoading) return;
+    
+    Animated.spring(itemAnim, {
+      toValue: 1,
+      delay: index * 100,
+      useNativeDriver: true,
+    }).start();
+  }, [isThemeLoading]);
+
+  return (
+    <Animated.View
+      style={[
+        styles.workoutCard,
+        {
+          opacity: itemAnim,
+          backgroundColor: currentTheme.surfaceColor,
+          shadowColor: currentTheme.shadowColor,
+          transform: [
+            { translateY: itemAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [20, 0]
+            })}
+          ]
+        }
+      ]}
+      key={index}
+    >
+      <TouchableOpacity
+        style={styles.workoutCardContent}
+        onPress={onToggleComplete}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.workoutEmojiContainer, { backgroundColor: currentTheme.emojiBg }]}>
+          <Text style={styles.workoutEmoji}>{workout.emoji}</Text>
+        </View>
+        
+        <View style={styles.workoutInfo}>
+          <View style={styles.workoutHeader}>
+            <Text style={[
+              styles.workoutTitle,
+              { color: currentTheme.primaryText },
+              isCompleted && styles.workoutTitleCompleted
+            ]}>
+              {workout.title}
+            </Text>
+            <View style={[
+              styles.calorieBadge, 
+              { backgroundColor: currentTheme.calorieBadge },
+              isCompleted && { backgroundColor: currentTheme.calorieBadgeCompleted }
+            ]}>
+              <Text style={[styles.calorieText, { color: currentTheme.accentColor }]}>
+                {workout.calories} cal
+              </Text>
+            </View>
+          </View>
+          
+          <Text style={[styles.workoutDesc, { color: currentTheme.secondaryText }]}>
+            {workout.desc}
+          </Text>
+          
+          <View style={styles.workoutFooter}>
+            <View style={styles.checkboxContainer}>
+              <View style={[
+                styles.checkbox,
+                { borderColor: currentTheme.checkboxBorder },
+                isCompleted && styles.checkboxChecked
+              ]}>
+                {isCompleted && (
+                  <Text style={styles.checkmark}>✓</Text>
+                )}
+              </View>
+              <Text style={[
+                styles.checkboxLabel,
+                { color: currentTheme.secondaryText },
+                isCompleted && styles.checkboxLabelCompleted
+              ]}>
+                {isCompleted ? "Completed" : "Mark as done"}
+              </Text>
+            </View>
+            
+            <Text style={[styles.exerciseNumber, { color: currentTheme.secondaryText }]}>
+              #{index + 1}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+});
+
 export default function CardioBlastScreen() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [completedWorkouts, setCompletedWorkouts] = useState([]);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isThemeLoading, setIsThemeLoading] = useState(true);
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -145,42 +249,68 @@ export default function CardioBlastScreen() {
 
   const currentTheme = isDarkMode ? theme.dark : theme.light;
 
-  // Fetch dark mode preference from Firestore - IMPROVED VERSION
+  // ===== FIXED: Fetch dark mode preference from Firestore =====
   useEffect(() => {
     const fetchDarkMode = async () => {
       const user = auth.currentUser;
       if (!user) {
-        console.log("No user found");
+        console.log("No user found, using light mode as default");
         setIsDarkMode(false);
+        setIsThemeLoading(false);
         return;
       }
 
-      console.log("Fetching dark mode for user ID:", user.uid);
+      const userId = user.uid;
+      console.log("Fetching dark mode for user ID:", userId);
 
       try {
-        // Method 1: Query by userID field
-        const usersRef = collection(db, "users");
-        const q = query(usersRef, where("userID", "==", user.uid));
+        // Method 1: Direct document access using userId as document ID
+        const userDocRef = doc(db, "users", userId);
+        const docSnap = await getDoc(userDocRef);
         
-        // First try a direct fetch
-        const querySnapshot = await getDocs(q);
-        
-        if (!querySnapshot.empty) {
-          const userDoc = querySnapshot.docs[0];
-          const userData = userDoc.data();
-          console.log("Found user data:", userData);
+        if (docSnap.exists()) {
+          const userData = docSnap.data();
+          console.log("Found user document with ID method:", userData);
           
-          // Check if darkMode exists, default to false if not
-          const darkModeValue = userData.darkMode !== undefined ? userData.darkMode : false;
+          // Check for darkMode field (case-insensitive)
+          const darkModeValue = 
+            userData.darkMode !== undefined ? userData.darkMode :
+            userData.darkmode !== undefined ? userData.darkmode :
+            userData.dark !== undefined ? userData.dark :
+            false;
+          
           console.log("Setting dark mode to:", darkModeValue);
           setIsDarkMode(darkModeValue);
         } else {
-          console.log("No user document found");
-          setIsDarkMode(false);
+          // Method 2: Query by userID field
+          console.log("Trying query method...");
+          const usersRef = collection(db, "users");
+          const q = query(usersRef, where("userID", "==", userId));
+          const querySnapshot = await getDocs(q);
+          
+          if (!querySnapshot.empty) {
+            const userDoc = querySnapshot.docs[0];
+            const userData = userDoc.data();
+            console.log("Found user data with query method:", userData);
+            
+            const darkModeValue = 
+              userData.darkMode !== undefined ? userData.darkMode :
+              userData.darkmode !== undefined ? userData.darkmode :
+              userData.dark !== undefined ? userData.dark :
+              false;
+            
+            console.log("Setting dark mode to:", darkModeValue);
+            setIsDarkMode(darkModeValue);
+          } else {
+            console.log("No user document found, using light mode as default");
+            setIsDarkMode(false);
+          }
         }
       } catch (error) {
         console.error("Error fetching dark mode:", error);
         setIsDarkMode(false);
+      } finally {
+        setIsThemeLoading(false);
       }
     };
 
@@ -190,24 +320,57 @@ export default function CardioBlastScreen() {
     const user = auth.currentUser;
     if (!user) return;
 
-    const usersRef = collection(db, "users");
-    const q = query(usersRef, where("userID", "==", user.uid));
+    const userId = user.uid;
     
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      console.log("Dark mode real-time update received");
+    // Try direct document listener first
+    const userDocRef = doc(db, "users", userId);
+    
+    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+      console.log("Dark mode real-time update (direct doc)");
       
-      if (!querySnapshot.empty) {
-        const userDoc = querySnapshot.docs[0];
-        const userData = userDoc.data();
+      if (docSnap.exists()) {
+        const userData = docSnap.data();
+        console.log("Real-time update data:", userData);
         
-        // Update dark mode if it exists in the data
+        // Check for darkMode field
         if (userData.darkMode !== undefined) {
           console.log("Real-time dark mode update:", userData.darkMode);
           setIsDarkMode(userData.darkMode);
+        } else if (userData.darkmode !== undefined) {
+          console.log("Real-time dark mode update (lowercase):", userData.darkmode);
+          setIsDarkMode(userData.darkmode);
         }
+      } else {
+        // Fallback to query listener
+        console.log("Direct doc not found, trying query listener...");
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("userID", "==", userId));
+        
+        const queryUnsubscribe = onSnapshot(q, (querySnapshot) => {
+          console.log("Dark mode real-time update (query)");
+          
+          if (!querySnapshot.empty) {
+            const userDoc = querySnapshot.docs[0];
+            const userData = userDoc.data();
+            
+            if (userData.darkMode !== undefined) {
+              console.log("Real-time dark mode update from query:", userData.darkMode);
+              setIsDarkMode(userData.darkMode);
+            } else if (userData.darkmode !== undefined) {
+              console.log("Real-time dark mode update from query (lowercase):", userData.darkmode);
+              setIsDarkMode(userData.darkmode);
+            }
+          }
+        }, (error) => {
+          console.error("Error in query listener:", error);
+        });
+        
+        return () => {
+          if (queryUnsubscribe) queryUnsubscribe();
+        };
       }
     }, (error) => {
-      console.error("Error in dark mode real-time listener:", error);
+      console.error("Error in direct doc listener:", error);
     });
 
     // Cleanup listener
@@ -216,7 +379,10 @@ export default function CardioBlastScreen() {
     };
   }, []);
 
+  // Don't start animations until theme is loaded
   useEffect(() => {
+    if (isThemeLoading) return;
+    
     // Entry animations
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -249,7 +415,7 @@ export default function CardioBlastScreen() {
         }),
       ])
     ).start();
-  }, []);
+  }, [isThemeLoading]);
 
   useEffect(() => {
     // Animate progress bar
@@ -342,98 +508,17 @@ export default function CardioBlastScreen() {
     }
   };
 
-  const renderWorkoutItem = (workout, index) => {
-    const isCompleted = completedWorkouts.includes(index);
-    const itemAnim = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-      Animated.spring(itemAnim, {
-        toValue: 1,
-        delay: index * 100,
-        useNativeDriver: true,
-      }).start();
-    }, []);
-
+  // Show loading screen while fetching theme
+  if (isThemeLoading) {
     return (
-      <Animated.View
-        style={[
-          styles.workoutCard,
-          {
-            opacity: itemAnim,
-            backgroundColor: currentTheme.surfaceColor,
-            shadowColor: currentTheme.shadowColor,
-            transform: [
-              { translateY: itemAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [20, 0]
-              })}
-            ]
-          }
-        ]}
-        key={index}
-      >
-        <TouchableOpacity
-          style={styles.workoutCardContent}
-          onPress={() => toggleWorkoutComplete(index)}
-          activeOpacity={0.7}
-        >
-          <View style={[styles.workoutEmojiContainer, { backgroundColor: currentTheme.emojiBg }]}>
-            <Text style={styles.workoutEmoji}>{workout.emoji}</Text>
-          </View>
-          
-          <View style={styles.workoutInfo}>
-            <View style={styles.workoutHeader}>
-              <Text style={[
-                styles.workoutTitle,
-                { color: currentTheme.primaryText },
-                isCompleted && styles.workoutTitleCompleted
-              ]}>
-                {workout.title}
-              </Text>
-              <View style={[
-                styles.calorieBadge, 
-                { backgroundColor: currentTheme.calorieBadge },
-                isCompleted && { backgroundColor: currentTheme.calorieBadgeCompleted }
-              ]}>
-                <Text style={[styles.calorieText, { color: currentTheme.accentColor }]}>
-                  {workout.calories} cal
-                </Text>
-              </View>
-            </View>
-            
-            <Text style={[styles.workoutDesc, { color: currentTheme.secondaryText }]}>
-              {workout.desc}
-            </Text>
-            
-            <View style={styles.workoutFooter}>
-              <View style={styles.checkboxContainer}>
-                <View style={[
-                  styles.checkbox,
-                  { borderColor: currentTheme.checkboxBorder },
-                  isCompleted && styles.checkboxChecked
-                ]}>
-                  {isCompleted && (
-                    <Text style={styles.checkmark}>✓</Text>
-                  )}
-                </View>
-                <Text style={[
-                  styles.checkboxLabel,
-                  { color: currentTheme.secondaryText },
-                  isCompleted && styles.checkboxLabelCompleted
-                ]}>
-                  {isCompleted ? "Completed" : "Mark as done"}
-                </Text>
-              </View>
-              
-              <Text style={[styles.exerciseNumber, { color: currentTheme.secondaryText }]}>
-                #{index + 1}
-              </Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Animated.View>
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.light.backgroundColor }]}>
+        <ActivityIndicator size="large" color="#C4935D" />
+        <Text style={[styles.loadingText, { color: theme.light.primaryText }]}>
+          Loading workout...
+        </Text>
+      </SafeAreaView>
     );
-  };
+  }
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: currentTheme.backgroundColor }]}>
@@ -545,7 +630,18 @@ export default function CardioBlastScreen() {
             Tap each exercise to mark as completed
           </Text>
           
-          {workouts.map((workout, index) => renderWorkoutItem(workout, index))}
+          {workouts.map((workout, index) => (
+            <WorkoutItem
+              key={index}
+              workout={workout}
+              index={index}
+              isCompleted={completedWorkouts.includes(index)}
+              onToggleComplete={() => toggleWorkoutComplete(index)}
+              currentTheme={currentTheme}
+              isDarkMode={isDarkMode}
+              isThemeLoading={isThemeLoading}
+            />
+          ))}
         </Animated.View>
 
         {/* Complete Workout Button */}
@@ -610,6 +706,18 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     paddingTop: 10,
+  },
+  
+  // Loading screen
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 20,
+    fontSize: 16,
+    fontWeight: "500",
   },
   
   // Header
