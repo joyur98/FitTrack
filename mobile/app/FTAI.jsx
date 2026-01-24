@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useState, useEffect, useRef } from "react";
 
-const BACKEND_URL = "http://192.168.1.82:3000/chat";
+const BACKEND_URL = "http://available-dichotomously-clare.ngrok-free.dev/chat";
 
 export default function FTAI() {
   const [message, setMessage] = useState("");
