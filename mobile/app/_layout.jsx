@@ -20,7 +20,28 @@ export default function RootLayout() {
             },
             headerTitle: "",
           })}
-        />
+        >
+          {/* Authentication routes */}
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="login" />
+          <Stack.Screen name="signup" />
+          <Stack.Screen name="forgotPassword" />
+
+          {/* Admin routes - no header */}
+          <Stack.Screen name="admin" options={{ headerShown: false }} />
+
+          {/* Regular user routes */}
+          <Stack.Screen name="dashboard" options={{ headerShown: false }} />
+          <Stack.Screen name="workout" options={{ headerShown: false }} />
+          <Stack.Screen name="calories" options={{ headerShown: false }} />
+          <Stack.Screen name="calorieBurnScreen" options={{ headerShown: false }} />
+          <Stack.Screen name="settings" options={{ headerShown: false }} />
+          <Stack.Screen name="profile" options={{ headerShown: false }} />
+          <Stack.Screen name="fullbodyworkout" options={{ headerShown: false }} />
+          <Stack.Screen name="upperbodystrength" options={{ headerShown: false }} />
+          <Stack.Screen name="cardioBlast" options={{ headerShown: false }} />
+          <Stack.Screen name="mentalFitness" options={{ headerShown: false }} />
+        </Stack>
 
         {/* Floating AI bubble */}
         <AIBubble />

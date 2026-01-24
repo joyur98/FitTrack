@@ -18,6 +18,8 @@ import {
 import { Link, router } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "./firebaseConfig";
+import { db } from "./firebaseConfig"; // Add this import
+import { doc, getDoc } from "firebase/firestore"; // Add this import
 
 const { width, height } = Dimensions.get("window");
 
@@ -51,7 +53,6 @@ export default function Login() {
 
   // Initialize animations
   useEffect(() => {
-    // Logo animation
     Animated.spring(logoScaleAnim, {
       toValue: 1,
       tension: 50,
@@ -60,7 +61,6 @@ export default function Login() {
       delay: 300,
     }).start();
 
-    // Entry animations
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -75,7 +75,6 @@ export default function Login() {
         easing: Easing.out(Easing.back(1.2)),
       }),
     ]).start(() => {
-      // Form animation
       Animated.timing(formAnim, {
         toValue: 1,
         duration: 400,
@@ -85,6 +84,35 @@ export default function Login() {
       }).start();
     });
   }, []);
+
+  // ✅ NEW FUNCTION: Check if user is admin
+  const checkUserRole = async (userId, userEmail) => {
+    try {
+      // Try to fetch user document from 'users' collection
+      const userDocRef = doc(db, "users", userId);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        
+        // Check if user has admin role
+        if (userData.role === "admin" || userData.isAdmin === true) {
+          return "admin";
+        }
+        
+        // Check if email is in admin email list (alternative method)
+        if (userData.email === userEmail && userData.role === "admin") {
+          return "admin";
+        }
+      }
+
+      // If no user document or not admin, return normal user
+      return "user";
+    } catch (error) {
+      console.error("Error checking user role:", error);
+      return "user"; // Default to user if error
+    }
+  };
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
@@ -109,7 +137,13 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      // Firebase login
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userId = userCredential.user.uid;
+      const userEmail = userCredential.user.email;
+
+      // ✅ Check user role
+      const userRole = await checkUserRole(userId, userEmail);
 
       // Success animation
       Animated.sequence([
@@ -125,7 +159,13 @@ export default function Login() {
         }),
       ]).start(() => {
         Alert.alert("✅ Success", "Welcome back to FitTrack!");
-        router.replace("/dashboard");
+        
+        // ✅ Redirect based on role
+        if (userRole === "admin") {
+          router.replace("/admin");
+        } else {
+          router.replace("/dashboard");
+        }
       });
     } catch (error) {
       // Error shake animation
@@ -170,7 +210,7 @@ export default function Login() {
           );
           break;
         default:
-          Alert.alert("Error", "Login failed. Please try again.");
+          Alert.alert("Error", error.message || "Login failed. Please try again.");
       }
     } finally {
       setLoading(false);
