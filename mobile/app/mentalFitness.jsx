@@ -1,5 +1,5 @@
 // MentalFitness.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -7,12 +7,19 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
-  Image,
   Modal,
   TextInput,
   Alert,
+  Animated,
+  Easing,
+  Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { auth, db } from "./firebaseConfig";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
+
+const { width } = Dimensions.get('window');
 
 export default function MentalFitnessScreen() {
   const router = useRouter();
@@ -21,6 +28,7 @@ export default function MentalFitnessScreen() {
   const [selectedMood, setSelectedMood] = useState(null);
   const [moodNotes, setMoodNotes] = useState("");
   const [showMoodModal, setShowMoodModal] = useState(false);
+  const [moodHistory, setMoodHistory] = useState([]);
   
   // State for breathing exercise
   const [breathingActive, setBreathingActive] = useState(false);
@@ -32,17 +40,225 @@ export default function MentalFitnessScreen() {
   const [meditationTime, setMeditationTime] = useState(0);
   const [meditationDuration, setMeditationDuration] = useState(300); // 5 minutes default
 
-  // Mood options
+  // Dark mode state
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isThemeLoading, setIsThemeLoading] = useState(true);
+
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const breathingScale = useRef(new Animated.Value(1)).current;
+  const breathingOpacity = useRef(new Animated.Value(1)).current;
+  const moodCardScale = useRef(new Animated.Value(1)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Theme colors with dark mode support
+  const theme = {
+    light: {
+      backgroundColor: "#f5efe6",
+      surfaceColor: "#fff",
+      cardColor: "#fff",
+      primaryText: "#4a3b31",
+      secondaryText: "#7a6659",
+      accentColor: "#C4935D",
+      secondaryAccent: "#5b4334",
+      borderColor: "#e8d9c5",
+      shadowColor: "#3b2a23",
+      moodBg: "#f8f3eb",
+      successColor: "#4CAF50",
+      calmColor: "#06D6A0",
+      anxiousColor: "#EF476F",
+      happyColor: "#FFD166",
+      progressBarBg: "#f0e6d6",
+      progressFill: "#C4935D",
+      historyBg: "#f8f3eb",
+      modalBg: "#fff",
+    },
+    dark: {
+      backgroundColor: "#121212",
+      surfaceColor: "#1e1e1e",
+      cardColor: "#2d2d2d",
+      primaryText: "#ffffff",
+      secondaryText: "#a0a0a0",
+      accentColor: "#C4935D",
+      secondaryAccent: "#8b7355",
+      borderColor: "#333",
+      shadowColor: "#000",
+      moodBg: "#2d2d2d",
+      successColor: "#4CAF50",
+      calmColor: "#06D6A0",
+      anxiousColor: "#EF476F",
+      happyColor: "#FFD166",
+      progressBarBg: "#2d2d2d",
+      progressFill: "#C4935D",
+      historyBg: "#2d2d2d",
+      modalBg: "#1e1e1e",
+    }
+  };
+
+  const currentTheme = isDarkMode ? theme.dark : theme.light;
+
+  // Mood options with dark mode support
   const moodOptions = [
-    { emoji: "😊", label: "Happy", color: "#FFD166" },
-    { emoji: "😌", label: "Calm", color: "#06D6A0" },
-    { emoji: "😐", label: "Neutral", color: "#118AB2" },
-    { emoji: "😔", label: "Sad", color: "#073B4C" },
-    { emoji: "😰", label: "Anxious", color: "#EF476F" },
-    { emoji: "😴", label: "Tired", color: "#7209B7" },
-    { emoji: "😤", label: "Stressed", color: "#F72585" },
-    { emoji: "🤩", label: "Excited", color: "#FF9E00" },
+    { emoji: "😊", label: "Happy", color: "#FFD166", bgColor: isDarkMode ? "#3D2C29" : "#FFF9E6" },
+    { emoji: "😌", label: "Calm", color: "#06D6A0", bgColor: isDarkMode ? "#1C2A24" : "#E6F7F2" },
+    { emoji: "😐", label: "Neutral", color: "#118AB2", bgColor: isDarkMode ? "#1C2A2E" : "#E6F3F8" },
+    { emoji: "😔", label: "Sad", color: "#073B4C", bgColor: isDarkMode ? "#1C2529" : "#E6EBEE" },
+    { emoji: "😰", label: "Anxious", color: "#EF476F", bgColor: isDarkMode ? "#3D242A" : "#FDEEF1" },
+    { emoji: "😴", label: "Tired", color: "#7209B7", bgColor: isDarkMode ? "#2D1C3D" : "#F3E6F8" },
+    { emoji: "😤", label: "Stressed", color: "#F72585", bgColor: isDarkMode ? "#3D1C2C" : "#FDE6F1" },
+    { emoji: "🤩", label: "Excited", color: "#FF9E00", bgColor: isDarkMode ? "#3D2C1C" : "#FFF3E0" },
   ];
+
+  // Fetch dark mode from Firebase
+  useEffect(() => {
+    const fetchDarkMode = async () => {
+      const user = auth.currentUser;
+      if (!user) {
+        console.log("No user found, using light mode as default");
+        setIsDarkMode(false);
+        setIsThemeLoading(false);
+        return;
+      }
+
+      const userId = user.uid;
+      
+      try {
+        // Method 1: Direct document access using userId as document ID
+        const userDocRef = doc(db, "users", userId);
+        const docSnap = await getDoc(userDocRef);
+        
+        if (docSnap.exists()) {
+          const userData = docSnap.data();
+          
+          // Check for darkMode field (case-insensitive)
+          const darkModeValue = 
+            userData.darkMode !== undefined ? userData.darkMode :
+            userData.darkmode !== undefined ? userData.darkmode :
+            userData.dark !== undefined ? userData.dark :
+            false;
+          
+          console.log("Setting dark mode to:", darkModeValue);
+          setIsDarkMode(darkModeValue);
+        } else {
+          console.log("No user document found, using light mode as default");
+          setIsDarkMode(false);
+        }
+      } catch (error) {
+        console.error("Error fetching dark mode:", error);
+        setIsDarkMode(false);
+      } finally {
+        setIsThemeLoading(false);
+      }
+    };
+
+    fetchDarkMode();
+
+    // Set up real-time listener
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const userId = user.uid;
+    
+    // Try direct document listener
+    const userDocRef = doc(db, "users", userId);
+    
+    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const userData = docSnap.data();
+        
+        // Check for darkMode field
+        if (userData.darkMode !== undefined) {
+          console.log("Real-time dark mode update:", userData.darkMode);
+          setIsDarkMode(userData.darkMode);
+        } else if (userData.darkmode !== undefined) {
+          console.log("Real-time dark mode update (lowercase):", userData.darkmode);
+          setIsDarkMode(userData.darkmode);
+        }
+      }
+    }, (error) => {
+      console.error("Error in dark mode listener:", error);
+    });
+
+    // Cleanup listener
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  // Entry animations (only start after theme loads)
+  useEffect(() => {
+    if (isThemeLoading) return;
+    
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Breathing animation loop
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.1,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [isThemeLoading]);
+
+  // Breathing exercise animation
+  useEffect(() => {
+    if (breathingActive) {
+      // Start breathing animation
+      if (breathingPhase === "inhale") {
+        Animated.parallel([
+          Animated.timing(breathingScale, {
+            toValue: 1.3,
+            duration: 4000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(breathingOpacity, {
+            toValue: 0.8,
+            duration: 4000,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      } else if (breathingPhase === "exhale") {
+        Animated.parallel([
+          Animated.timing(breathingScale, {
+            toValue: 1,
+            duration: 4000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(breathingOpacity, {
+            toValue: 1,
+            duration: 4000,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+    } else {
+      breathingScale.setValue(1);
+      breathingOpacity.setValue(1);
+    }
+  }, [breathingActive, breathingPhase]);
 
   // Breathing exercise timer
   useEffect(() => {
@@ -76,25 +292,60 @@ export default function MentalFitnessScreen() {
       }, 1000);
     } else if (meditationTime >= meditationDuration) {
       setMeditationActive(false);
+      // Success animation
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.2,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
       Alert.alert("🎉 Meditation Complete", "Great job! You've completed your meditation session.");
     }
     return () => clearInterval(interval);
   }, [meditationActive, meditationTime]);
 
-  // Save mood function
+  // Save mood function with animation
   const saveMood = () => {
     if (!selectedMood) {
       Alert.alert("Select Mood", "Please select how you're feeling");
       return;
     }
     
-    Alert.alert("Mood Saved", `Your ${moodOptions[selectedMood].label} mood has been recorded!`);
+    // Button animation
+    Animated.sequence([
+      Animated.timing(moodCardScale, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(moodCardScale, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    
+    const moodData = {
+      mood: moodOptions[selectedMood],
+      notes: moodNotes,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      date: new Date().toLocaleDateString()
+    };
+    
+    setMoodHistory([moodData, ...moodHistory.slice(0, 4)]);
+    Alert.alert("✅ Mood Saved", `Your ${moodOptions[selectedMood].label} mood has been recorded!`);
     setShowMoodModal(false);
     setMoodNotes("");
     setSelectedMood(null);
   };
 
-  // Start/Stop breathing exercise
+  // Start/Stop breathing exercise with animation
   const toggleBreathing = () => {
     if (!breathingActive) {
       setBreathingPhase("inhale");
@@ -103,7 +354,7 @@ export default function MentalFitnessScreen() {
     setBreathingActive(!breathingActive);
   };
 
-  // Start/Stop meditation
+  // Start/Stop meditation with animation
   const toggleMeditation = () => {
     if (!meditationActive) {
       setMeditationTime(0);
@@ -118,30 +369,87 @@ export default function MentalFitnessScreen() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Quick tips
+  // Quick tips with dark mode support
   const quickTips = [
-    "Take 5 deep breaths when stressed",
-    "Drink a glass of water",
-    "Stand up and stretch",
-    "Write down 3 things you're grateful for",
-    "Listen to calming music for 2 minutes",
-    "Close your eyes and count to 10 slowly",
+    { emoji: "🌬️", text: "Take 5 deep breaths when stressed", color: isDarkMode ? "#1C2A24" : "#E6F7F2" },
+    { emoji: "💧", text: "Drink a glass of water", color: isDarkMode ? "#1C2A2E" : "#E6F3F8" },
+    { emoji: "🤸", text: "Stand up and stretch", color: isDarkMode ? "#3D2C29" : "#FFF9E6" },
+    { emoji: "📝", text: "Write down 3 things you're grateful for", color: isDarkMode ? "#2D1C3D" : "#F3E6F8" },
+    { emoji: "🎵", text: "Listen to calming music for 2 minutes", color: isDarkMode ? "#3D242A" : "#FDEEF1" },
+    { emoji: "👁️", text: "Close your eyes and count to 10 slowly", color: isDarkMode ? "#3D1C2C" : "#FDE6F1" },
   ];
 
+  // Resources with dark mode support
+  const resources = [
+    { emoji: "📞", title: "Crisis Helpline (Nepal)", subtitle: "Call 1166 for mental health support", color: isDarkMode ? "#3D242A" : "#FDEEF1" },
+    { emoji: "📱", title: "Meditation Apps", subtitle: "Headspace, Calm, Insight Timer", color: isDarkMode ? "#1C2A24" : "#E6F7F2" },
+    { emoji: "📖", title: "Journaling", subtitle: "Write down your thoughts daily", color: isDarkMode ? "#3D2C29" : "#FFF9E6" },
+    { emoji: "👥", title: "Support Groups", subtitle: "Connect with others going through similar experiences", color: isDarkMode ? "#1C2A2E" : "#E6F3F8" },
+  ];
+
+  // Show loading screen while fetching theme
+  if (isThemeLoading) {
+    return (
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: theme.light.backgroundColor }]}>
+        <ActivityIndicator size="large" color="#C4935D" />
+        <Text style={[styles.loadingText, { color: theme.light.primaryText }]}>
+          Loading Mental Fitness...
+        </Text>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: currentTheme.backgroundColor }]}>
+      <Animated.ScrollView 
+        style={styles.container} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>🧠 Mental Fitness</Text>
-          <Text style={styles.subtitle}>Nurture your mind, strengthen your spirit</Text>
-        </View>
+        <Animated.View 
+          style={[
+            styles.header,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <View style={[styles.headerIcon, { backgroundColor: currentTheme.accentColor }]}>
+            <Text style={styles.headerIconText}>🧠</Text>
+          </View>
+          <View style={styles.headerText}>
+            <Text style={[styles.title, { color: currentTheme.primaryText }]}>
+              Mental Fitness
+            </Text>
+            <Text style={[styles.subtitle, { color: currentTheme.secondaryText }]}>
+              Nurture your mind, strengthen your spirit
+            </Text>
+          </View>
+        </Animated.View>
 
         {/* Mood Tracker Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>How are you feeling today?</Text>
-          <Text style={styles.cardDescription}>Track your mood and emotions</Text>
+        <Animated.View 
+          style={[
+            styles.card,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+              backgroundColor: currentTheme.surfaceColor,
+              shadowColor: currentTheme.shadowColor,
+            }
+          ]}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: currentTheme.primaryText }]}>
+              How are you feeling today?
+            </Text>
+            <Text style={[styles.cardDescription, { color: currentTheme.secondaryText }]}>
+              Track your mood and emotions
+            </Text>
+          </View>
           
           <ScrollView 
             horizontal 
@@ -153,185 +461,354 @@ export default function MentalFitnessScreen() {
                 key={index}
                 style={[
                   styles.moodOption,
-                  { backgroundColor: mood.color },
-                  selectedMood === index && styles.moodSelected
+                  { backgroundColor: mood.bgColor },
+                  selectedMood === index && [styles.moodSelected, { borderColor: mood.color }]
                 ]}
                 onPress={() => {
                   setSelectedMood(index);
                   setShowMoodModal(true);
                 }}
+                activeOpacity={0.7}
               >
                 <Text style={styles.moodEmoji}>{mood.emoji}</Text>
-                <Text style={styles.moodLabel}>{mood.label}</Text>
+                <Text style={[styles.moodLabel, { color: mood.color }]}>{mood.label}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
 
-          <TouchableOpacity 
-            style={styles.primaryButton}
-            onPress={() => setShowMoodModal(true)}
-          >
-            <Text style={styles.primaryButtonText}>Track My Mood</Text>
-          </TouchableOpacity>
-        </View>
+          {moodHistory.length > 0 && (
+            <View style={styles.moodHistory}>
+              <Text style={[styles.historyTitle, { color: currentTheme.primaryText }]}>
+                Recent Moods
+              </Text>
+              <View style={styles.historyContainer}>
+                {moodHistory.map((item, index) => (
+                  <View key={index} style={[styles.historyItem, { backgroundColor: currentTheme.historyBg }]}>
+                    <Text style={styles.historyEmoji}>{item.mood.emoji}</Text>
+                    <View style={styles.historyText}>
+                      <Text style={[styles.historyTime, { color: currentTheme.secondaryText }]}>
+                        {item.timestamp}
+                      </Text>
+                      <Text style={[styles.historyLabel, { color: currentTheme.primaryText }]}>
+                        {item.mood.label}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          <Animated.View style={{ transform: [{ scale: moodCardScale }] }}>
+            <TouchableOpacity 
+              style={[styles.primaryButton, { backgroundColor: currentTheme.accentColor }]}
+              onPress={() => {
+                if (selectedMood !== null) {
+                  setShowMoodModal(true);
+                } else {
+                  Alert.alert("Select Mood", "Please select a mood first");
+                }
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.primaryButtonText}>Track My Mood</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
 
         {/* Breathing Exercise */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>🌬️ Breathing Exercise</Text>
-          <Text style={styles.cardDescription}>4-4-4 breathing technique for relaxation</Text>
+        <Animated.View 
+          style={[
+            styles.card,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+              backgroundColor: currentTheme.surfaceColor,
+              shadowColor: currentTheme.shadowColor,
+            }
+          ]}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: currentTheme.primaryText }]}>
+              🌬️ Breathing Exercise
+            </Text>
+            <Text style={[styles.cardDescription, { color: currentTheme.secondaryText }]}>
+              4-4-4 breathing technique for relaxation
+            </Text>
+          </View>
           
           <View style={styles.breathingContainer}>
-            <View style={[
-              styles.breathingCircle,
-              { 
-                transform: [{ scale: breathingPhase === "inhale" ? 1.2 : 1 }],
-                backgroundColor: breathingPhase === "inhale" ? "#06D6A0" :
-                                breathingPhase === "exhale" ? "#118AB2" : "#FFD166"
-              }
-            ]}>
+            <Animated.View 
+              style={[
+                styles.breathingCircle,
+                { 
+                  backgroundColor: breathingPhase === "inhale" ? currentTheme.calmColor :
+                                  breathingPhase === "exhale" ? "#118AB2" : currentTheme.happyColor,
+                  transform: [{ scale: breathingScale }],
+                  opacity: breathingOpacity
+                }
+              ]}
+            >
               <Text style={styles.breathingText}>
                 {breathingPhase === "inhale" ? "INHALE" :
                  breathingPhase === "exhale" ? "EXHALE" : "HOLD"}
               </Text>
               <Text style={styles.breathingTime}>{breathingTime}s</Text>
-            </View>
+            </Animated.View>
             
             <View style={styles.breathingInstructions}>
-              <Text style={styles.instructionsText}>
-                {breathingPhase === "inhale" ? "Breathe in slowly..." :
-                 breathingPhase === "exhale" ? "Breathe out slowly..." :
+              <Text style={[styles.instructionsText, { color: currentTheme.primaryText }]}>
+                {breathingPhase === "inhale" ? "Breathe in slowly through your nose..." :
+                 breathingPhase === "exhale" ? "Breathe out slowly through your mouth..." :
                  "Hold your breath..."}
               </Text>
+              <View style={styles.breathingProgress}>
+                <View style={[styles.progressBar, { backgroundColor: currentTheme.progressBarBg }]}>
+                  <View 
+                    style={[
+                      styles.progressFill, 
+                      { 
+                        backgroundColor: currentTheme.progressFill,
+                        width: `${(4 - breathingTime) * 25}%`
+                      }
+                    ]} 
+                  />
+                </View>
+              </View>
             </View>
           </View>
 
-          <TouchableOpacity 
-            style={[styles.primaryButton, breathingActive && styles.stopButton]}
-            onPress={toggleBreathing}
-          >
-            <Text style={styles.primaryButtonText}>
-              {breathingActive ? "Stop Breathing Exercise" : "Start Breathing Exercise"}
-            </Text>
-          </TouchableOpacity>
-        </View>
+          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+            <TouchableOpacity 
+              style={[
+                styles.primaryButton, 
+                { backgroundColor: breathingActive ? currentTheme.anxiousColor : currentTheme.accentColor }
+              ]}
+              onPress={toggleBreathing}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.primaryButtonText}>
+                {breathingActive ? "Stop Breathing Exercise" : "Start Breathing Exercise"}
+              </Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
 
         {/* Meditation Timer */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>🕉️ Meditation Timer</Text>
-          <Text style={styles.cardDescription}>Find your inner peace</Text>
+        <Animated.View 
+          style={[
+            styles.card,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+              backgroundColor: currentTheme.surfaceColor,
+              shadowColor: currentTheme.shadowColor,
+            }
+          ]}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: currentTheme.primaryText }]}>
+              🕉️ Meditation Timer
+            </Text>
+            <Text style={[styles.cardDescription, { color: currentTheme.secondaryText }]}>
+              Find your inner peace
+            </Text>
+          </View>
           
           <View style={styles.meditationContainer}>
-            <Text style={styles.meditationTime}>
-              {formatTime(meditationActive ? meditationTime : meditationDuration)}
-            </Text>
+            <Animated.View style={{ transform: [{ scale: meditationActive ? pulseAnim : 1 }] }}>
+              <Text style={[styles.meditationTime, { color: currentTheme.primaryText }]}>
+                {formatTime(meditationActive ? meditationTime : meditationDuration)}
+              </Text>
+            </Animated.View>
+            
+            <View style={styles.meditationProgress}>
+              <View style={[styles.progressBar, { backgroundColor: currentTheme.progressBarBg }]}>
+                <View 
+                  style={[
+                    styles.progressFill, 
+                    { 
+                      backgroundColor: currentTheme.progressFill,
+                      width: `${(meditationTime / meditationDuration) * 100}%`
+                    }
+                  ]} 
+                />
+              </View>
+            </View>
             
             <View style={styles.meditationControls}>
-              <TouchableOpacity 
-                style={styles.durationButton}
-                onPress={() => setMeditationDuration(300)} // 5 min
-              >
-                <Text style={[
-                  styles.durationButtonText,
-                  meditationDuration === 300 && styles.durationButtonActive
-                ]}>5 min</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.durationButton}
-                onPress={() => setMeditationDuration(600)} // 10 min
-              >
-                <Text style={[
-                  styles.durationButtonText,
-                  meditationDuration === 600 && styles.durationButtonActive
-                ]}>10 min</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.durationButton}
-                onPress={() => setMeditationDuration(900)} // 15 min
-              >
-                <Text style={[
-                  styles.durationButtonText,
-                  meditationDuration === 900 && styles.durationButtonActive
-                ]}>15 min</Text>
-              </TouchableOpacity>
+              {[300, 600, 900].map((duration) => (
+                <TouchableOpacity 
+                  key={duration}
+                  style={[
+                    styles.durationButton,
+                    { backgroundColor: currentTheme.moodBg },
+                    meditationDuration === duration && { backgroundColor: currentTheme.accentColor }
+                  ]}
+                  onPress={() => {
+                    if (!meditationActive) {
+                      setMeditationDuration(duration);
+                    }
+                  }}
+                  disabled={meditationActive}
+                >
+                  <Text style={[
+                    styles.durationButtonText,
+                    { color: currentTheme.secondaryText },
+                    meditationDuration === duration && { color: '#fff' }
+                  ]}>
+                    {duration / 60} min
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
 
           <TouchableOpacity 
-            style={[styles.primaryButton, meditationActive && styles.stopButton]}
+            style={[
+              styles.primaryButton, 
+              { 
+                backgroundColor: meditationActive ? currentTheme.anxiousColor : currentTheme.accentColor
+              }
+            ]}
             onPress={toggleMeditation}
+            activeOpacity={0.8}
           >
             <Text style={styles.primaryButtonText}>
               {meditationActive ? "Stop Meditation" : "Start Meditation"}
             </Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
         {/* Quick Tips */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>💡 Quick Mental Boosters</Text>
-          <Text style={styles.cardDescription}>Try these when you need a quick reset</Text>
+        <Animated.View 
+          style={[
+            styles.card,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+              backgroundColor: currentTheme.surfaceColor,
+              shadowColor: currentTheme.shadowColor,
+            }
+          ]}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: currentTheme.primaryText }]}>
+              💡 Quick Mental Boosters
+            </Text>
+            <Text style={[styles.cardDescription, { color: currentTheme.secondaryText }]}>
+              Try these when you need a quick reset
+            </Text>
+          </View>
           
           <View style={styles.tipsContainer}>
             {quickTips.map((tip, index) => (
-              <View key={index} style={styles.tipItem}>
-                <Text style={styles.tipNumber}>{index + 1}.</Text>
-                <Text style={styles.tipText}>{tip}</Text>
-              </View>
+              <Animated.View 
+                key={index}
+                style={[
+                  styles.tipItem,
+                  { backgroundColor: tip.color },
+                  {
+                    opacity: fadeAnim,
+                    transform: [
+                      { translateX: slideAnim.interpolate({
+                        inputRange: [0, 30],
+                        outputRange: [0, 20]
+                      })}
+                    ]
+                  }
+                ]}
+              >
+                <Text style={styles.tipEmoji}>{tip.emoji}</Text>
+                <Text style={[styles.tipText, { color: currentTheme.primaryText }]}>
+                  {tip.text}
+                </Text>
+              </Animated.View>
             ))}
           </View>
-        </View>
+        </Animated.View>
 
         {/* Resources */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>📚 Mental Health Resources</Text>
+        <Animated.View 
+          style={[
+            styles.card,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+              backgroundColor: currentTheme.surfaceColor,
+              shadowColor: currentTheme.shadowColor,
+              marginBottom: 30,
+            }
+          ]}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: currentTheme.primaryText }]}>
+              📚 Mental Health Resources
+            </Text>
+          </View>
           
-          <TouchableOpacity style={styles.resourceItem}>
-            <Text style={styles.resourceEmoji}>📞</Text>
-            <View style={styles.resourceText}>
-              <Text style={styles.resourceTitle}>Crisis Helpline (Nepal)</Text>
-              <Text style={styles.resourceSubtitle}>Call 1166 for mental health support</Text>
-            </View>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.resourceItem}>
-            <Text style={styles.resourceEmoji}>📱</Text>
-            <View style={styles.resourceText}>
-              <Text style={styles.resourceTitle}>Meditation Apps</Text>
-              <Text style={styles.resourceSubtitle}>Headspace, Calm, Insight Timer</Text>
-            </View>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.resourceItem}>
-            <Text style={styles.resourceEmoji}>📖</Text>
-            <View style={styles.resourceText}>
-              <Text style={styles.resourceTitle}>Journaling</Text>
-              <Text style={styles.resourceSubtitle}>Write down your thoughts daily</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-      </ScrollView>
+          {resources.map((resource, index) => (
+            <TouchableOpacity 
+              key={index} 
+              style={[styles.resourceItem, { backgroundColor: resource.color }]}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.resourceEmoji}>{resource.emoji}</Text>
+              <View style={styles.resourceText}>
+                <Text style={[styles.resourceTitle, { color: currentTheme.primaryText }]}>
+                  {resource.title}
+                </Text>
+                <Text style={[styles.resourceSubtitle, { color: currentTheme.secondaryText }]}>
+                  {resource.subtitle}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </Animated.View>
+      </Animated.ScrollView>
 
       {/* Mood Modal */}
       <Modal
         visible={showMoodModal}
         transparent
-        animationType="slide"
+        animationType="fade"
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <Animated.View 
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: currentTheme.modalBg,
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }]
+              }
+            ]}
+          >
             {selectedMood !== null && (
               <>
-                <Text style={styles.modalTitle}>
-                  {moodOptions[selectedMood].emoji} {moodOptions[selectedMood].label}
-                </Text>
+                <View style={styles.modalHeader}>
+                  <Text style={[styles.modalEmoji, { color: moodOptions[selectedMood].color }]}>
+                    {moodOptions[selectedMood].emoji}
+                  </Text>
+                  <Text style={[styles.modalTitle, { color: currentTheme.primaryText }]}>
+                    {moodOptions[selectedMood].label}
+                  </Text>
+                  <Text style={[styles.modalSubtitle, { color: currentTheme.secondaryText }]}>
+                    How are you feeling right now?
+                  </Text>
+                </View>
                 
                 <TextInput
-                  style={styles.notesInput}
+                  style={[
+                    styles.notesInput,
+                    { 
+                      backgroundColor: currentTheme.moodBg,
+                      color: currentTheme.primaryText,
+                      borderColor: currentTheme.borderColor
+                    }
+                  ]}
                   placeholder="Add notes about how you're feeling (optional)"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={currentTheme.secondaryText}
                   multiline
                   numberOfLines={4}
                   value={moodNotes}
@@ -340,22 +817,26 @@ export default function MentalFitnessScreen() {
                 
                 <View style={styles.modalButtons}>
                   <TouchableOpacity 
-                    style={[styles.modalButton, styles.cancelButton]}
+                    style={[styles.modalButton, { backgroundColor: currentTheme.moodBg }]}
                     onPress={() => setShowMoodModal(false)}
+                    activeOpacity={0.7}
                   >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                    <Text style={[styles.cancelButtonText, { color: currentTheme.secondaryText }]}>
+                      Cancel
+                    </Text>
                   </TouchableOpacity>
                   
                   <TouchableOpacity 
-                    style={[styles.modalButton, styles.saveButton]}
+                    style={[styles.modalButton, { backgroundColor: currentTheme.accentColor }]}
                     onPress={saveMood}
+                    activeOpacity={0.8}
                   >
                     <Text style={styles.saveButtonText}>Save Mood</Text>
                   </TouchableOpacity>
                 </View>
               </>
             )}
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -365,88 +846,171 @@ export default function MentalFitnessScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f5efe6",
   },
   container: {
-    padding: 16,
+    flex: 1,
   },
+  scrollContent: {
+    padding: 20,
+    paddingTop: 10,
+  },
+  
+  // Loading screen
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 20,
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  
+  // Header
   header: {
+    flexDirection: "row",
     alignItems: "center",
     marginBottom: 20,
+  },
+  headerIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 15,
+    elevation: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  headerIconText: {
+    fontSize: 28,
+    color: "#fff",
+  },
+  headerText: {
+    flex: 1,
   },
   title: {
     fontSize: 32,
     fontWeight: "800",
-    color: "#4a3b31",
-    marginBottom: 8,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 14,
-    color: "#7a6659",
-    textAlign: "center",
+    marginTop: 4,
+    lineHeight: 18,
   },
+  
+  // Cards
   card: {
-    backgroundColor: "#fff",
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
     elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 8,
+  },
+  cardHeader: {
+    marginBottom: 20,
   },
   cardTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#4a3b31",
     marginBottom: 8,
   },
   cardDescription: {
     fontSize: 14,
-    color: "#7a6659",
-    marginBottom: 16,
+    lineHeight: 18,
   },
+  
+  // Mood Tracker
   moodScroll: {
     marginBottom: 20,
   },
   moodOption: {
-    width: 80,
-    height: 100,
-    borderRadius: 15,
+    width: 85,
+    height: 110,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
-    padding: 10,
+    padding: 12,
+    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   moodSelected: {
     borderWidth: 3,
-    borderColor: "#4a3b31",
+    elevation: 4,
   },
   moodEmoji: {
-    fontSize: 30,
-    marginBottom: 8,
+    fontSize: 32,
+    marginBottom: 10,
   },
   moodLabel: {
-    color: "#fff",
+    fontSize: 13,
     fontWeight: "600",
-    fontSize: 12,
     textAlign: "center",
   },
+  
+  // Mood History
+  moodHistory: {
+    marginBottom: 20,
+  },
+  historyTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  historyContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  historyItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  historyEmoji: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  historyText: {
+    flexDirection: "column",
+  },
+  historyTime: {
+    fontSize: 10,
+    fontWeight: "500",
+  },
+  historyLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  
+  // Primary Button
   primaryButton: {
-    backgroundColor: "#C4935D",
-    paddingVertical: 14,
+    paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
+    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   primaryButtonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
   },
-  stopButton: {
-    backgroundColor: "#e74c3c",
-  },
+  
+  // Breathing Exercise
   breathingContainer: {
     alignItems: "center",
     marginVertical: 20,
@@ -457,27 +1021,50 @@ const styles = StyleSheet.create({
     borderRadius: 90,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 20,
+    marginBottom: 25,
+    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   breathingText: {
     color: "#fff",
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
     marginBottom: 8,
+    letterSpacing: 1,
   },
   breathingTime: {
     color: "#fff",
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: "800",
   },
   breathingInstructions: {
-    marginBottom: 20,
+    width: "100%",
+    alignItems: "center",
   },
   instructionsText: {
-    fontSize: 16,
-    color: "#4a3b31",
+    fontSize: 15,
+    marginBottom: 16,
     textAlign: "center",
+    lineHeight: 22,
   },
+  breathingProgress: {
+    width: "80%",
+  },
+  
+  // Progress Bar
+  progressBar: {
+    height: 6,
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 3,
+  },
+  
+  // Meditation
   meditationContainer: {
     alignItems: "center",
     marginVertical: 20,
@@ -485,57 +1072,67 @@ const styles = StyleSheet.create({
   meditationTime: {
     fontSize: 48,
     fontWeight: "800",
-    color: "#4a3b31",
     marginBottom: 20,
+  },
+  meditationProgress: {
+    width: "80%",
+    marginBottom: 25,
   },
   meditationControls: {
     flexDirection: "row",
     justifyContent: "center",
-    marginBottom: 20,
+    gap: 12,
   },
   durationButton: {
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: "#f0e6d8",
-    marginHorizontal: 8,
+    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   durationButtonText: {
-    color: "#7a6659",
+    fontSize: 14,
     fontWeight: "600",
   },
-  durationButtonActive: {
-    color: "#C4935D",
-    fontWeight: "700",
-  },
+  
+  // Quick Tips
   tipsContainer: {
-    marginTop: 10,
+    gap: 12,
   },
   tipItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    padding: 16,
+    borderRadius: 12,
+    elevation: 1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
-  tipNumber: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#C4935D",
-    marginRight: 12,
-    width: 24,
+  tipEmoji: {
+    fontSize: 24,
+    marginRight: 16,
   },
   tipText: {
-    fontSize: 14,
-    color: "#4a3b31",
     flex: 1,
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 20,
   },
+  
+  // Resources
   resourceItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    elevation: 1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   resourceEmoji: {
     fontSize: 24,
@@ -547,13 +1144,14 @@ const styles = StyleSheet.create({
   resourceTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#4a3b31",
     marginBottom: 4,
   },
   resourceSubtitle: {
     fontSize: 14,
-    color: "#7a6659",
+    lineHeight: 18,
   },
+  
+  // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -562,50 +1160,63 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 24,
     width: "90%",
+    maxWidth: 400,
+    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+  },
+  modalHeader: {
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  modalEmoji: {
+    fontSize: 48,
+    marginBottom: 12,
   },
   modalTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "700",
-    color: "#4a3b31",
-    marginBottom: 20,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  modalSubtitle: {
+    fontSize: 14,
     textAlign: "center",
   },
   notesInput: {
-    backgroundColor: "#f8f5f0",
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
     height: 120,
-    marginBottom: 20,
+    marginBottom: 24,
     textAlignVertical: "top",
+    borderWidth: 1,
   },
   modalButtons: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: 12,
   },
   modalButton: {
     flex: 1,
     padding: 16,
     borderRadius: 12,
     alignItems: "center",
-    marginHorizontal: 8,
-  },
-  cancelButton: {
-    backgroundColor: "#f0e6d8",
+    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   cancelButtonText: {
-    color: "#7a6659",
+    fontSize: 16,
     fontWeight: "600",
-  },
-  saveButton: {
-    backgroundColor: "#C4935D",
   },
   saveButtonText: {
     color: "#fff",
+    fontSize: 16,
     fontWeight: "600",
   },
 });
