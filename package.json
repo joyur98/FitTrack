@@ -1,7 +1,11 @@
 {
   "dependencies": {
     "@xenova/transformers": "^2.17.2",
+<<<<<<< HEAD
     "cors": "^2.8.6",
+=======
+    "cors": "^2.8.5",
+>>>>>>> 0522e7f048537e792b233593590a081cff8f15a9
     "expo": "^54.0.32",
     "express": "^5.2.1"
   }
