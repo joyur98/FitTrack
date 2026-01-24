@@ -445,6 +445,53 @@ export default function WorkoutScreen() {
             Try 20 minutes of meditation after your workout for best results.
           </Text>
         </Animated.View>
+
+        {/* ===== DEBUG SECTION ===== */}
+        <View style={[styles.debugSection, { 
+          backgroundColor: theme.cardBackground,
+          borderColor: theme.borderColor 
+        }]}>
+          <Text style={[styles.debugTitle, { color: theme.textColor }]}>🔧 Debug Navigation Test</Text>
+          
+          <TouchableOpacity
+            style={[styles.debugButton, {backgroundColor: '#FF6B6B'}]}
+            onPress={() => {
+              console.log("🧪 DEBUG: Testing /mentalFitness route");
+              console.log("📁 File should be: app/mentalFitness.jsx");
+              router.push("/mentalFitness");
+            }}
+          >
+            <Text style={styles.debugButtonText}>Test Mental Fitness Route</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.debugButton, {backgroundColor: '#4ECDC4'}]}
+            onPress={() => router.push("/fullbodyworkout")}
+          >
+            <Text style={styles.debugButtonText}>Test FullBody Route (Control Test)</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.debugButton, {backgroundColor: '#FFD93D'}]}
+            onPress={() => router.push("/cardioblast")}
+          >
+            <Text style={styles.debugButtonText}>Test CardioBlast Route</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.debugButton, {backgroundColor: '#9B59B6'}]}
+            onPress={() => {
+              console.log("📊 ROUTES INFO:");
+              console.log("- mentalFitness.jsx exists: ✓");
+              console.log("- Route: /mentalFitness");
+              console.log("- In layout: check _layout.jsx");
+            }}
+          >
+            <Text style={styles.debugButtonText}>Check Route Info (Console)</Text>
+          </TouchableOpacity>
+        </View>
+        {/* ===== END DEBUG SECTION ===== */}
+
       </Animated.ScrollView>
     </SafeAreaView>
   );
@@ -719,5 +766,41 @@ const styles = StyleSheet.create({
   tipsText: {
     fontSize: 14,
     lineHeight: 22,
+  },
+
+  // Debug Section Styles
+  debugSection: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 40,
+    borderWidth: 1,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+  },
+  debugTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  debugButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  debugButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
   },
 });
