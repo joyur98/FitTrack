@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
 
   botMsg: {
     alignSelf: "flex-start",
-    backgroundColor: "#A52A2A",
+    backgroundColor: "#5C4033",
     borderBottomLeftRadius: 6,
   },
 

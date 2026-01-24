@@ -1,5 +1,5 @@
-// workout.jsx - UPDATED WITH MENTAL FITNESS
-import React from "react";
+// workout.jsx - ENHANCED WITH ANIMATIONS & DARK MODE
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -7,8 +7,16 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
+  Animated,
+  Easing,
+  Dimensions,
 } from "react-native";
 import { router } from "expo-router";
+import { auth } from "./firebaseConfig";
+import { db } from "./firebaseConfig";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
+
+const { width } = Dimensions.get('window');
 
 // Define workouts - INCLUDING MENTAL FITNESS
 const workouts = [
@@ -52,148 +60,557 @@ const workouts = [
 ];
 
 export default function WorkoutScreen() {
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [activeCategory, setActiveCategory] = useState("all");
+  
+  // Animation values
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [slideAnim] = useState(new Animated.Value(50));
+  const [scaleAnim] = useState(new Animated.Value(0.9));
+  const [headerSlide] = useState(new Animated.Value(30));
+  
+  // Use refs for card animations
+  const cardAnimations = useRef([]);
+  const user = auth.currentUser;
+
+  // Initialize card animations
+  useEffect(() => {
+    cardAnimations.current = workouts.map(() => ({
+      slide: new Animated.Value(30),
+      fade: new Animated.Value(0),
+      scale: new Animated.Value(0.9),
+    }));
+  }, []);
+
+  // Fetch dark mode and animate on mount
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchDarkMode = async () => {
+      try {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setIsDarkMode(userData.darkMode || false);
+        }
+      } catch (error) {
+        console.error("Error fetching dark mode:", error);
+      }
+    };
+
+    fetchDarkMode();
+
+    // Real-time listener for dark mode
+    const userDocRef = doc(db, "users", user.uid);
+    const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setIsDarkMode(data.darkMode || false);
+      }
+    });
+
+    // Entry animations
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(headerSlide, {
+        toValue: 0,
+        duration: 500,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    return () => unsubscribe();
+  }, []);
+
+  // Animate cards when they appear
+  useEffect(() => {
+    cardAnimations.current.forEach((anim, index) => {
+      Animated.sequence([
+        Animated.delay(index * 100),
+        Animated.parallel([
+          Animated.timing(anim.fade, {
+            toValue: 1,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+          Animated.timing(anim.slide, {
+            toValue: 0,
+            duration: 400,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.spring(anim.scale, {
+            toValue: 1,
+            friction: 8,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start();
+    });
+  }, []);
+
+  // Theme styles
+  const theme = {
+    backgroundColor: isDarkMode ? "#121212" : "#f8f5f0",
+    cardBackground: isDarkMode ? "#1e1e1e" : "#fff",
+    textColor: isDarkMode ? "#ffffff" : "#4a3b31",
+    secondaryText: isDarkMode ? "#a0a0a0" : "#7a6659",
+    borderColor: isDarkMode ? "#333" : "#eee",
+    primaryColor: "#C4935D",
+    secondaryColor: isDarkMode ? "#2d2d2d" : "#4a3b31",
+    inputBackground: isDarkMode ? "#2d2d2d" : "#f8f5f0",
+    categoryActive: isDarkMode ? "#C4935D" : "#C4935D",
+    categoryInactive: isDarkMode ? "#2d2d2d" : "#fff",
+  };
+
+  // Filter workouts based on category
+  const filteredWorkouts = activeCategory === "all" 
+    ? workouts 
+    : workouts.filter(w => w.type === activeCategory);
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.backgroundColor }]}>
+      <Animated.ScrollView 
+        style={[styles.container, { opacity: fadeAnim }]} 
+        showsVerticalScrollIndicator={false}
+      >
         
         {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Workouts & Wellness</Text>
-          <Text style={styles.subtitle}>
-            Train your body and mind for complete fitness 💪🧠
-          </Text>
-        </View>
+        <Animated.View 
+          style={[
+            styles.header,
+            { 
+              transform: [{ translateY: headerSlide }],
+              opacity: fadeAnim 
+            }
+          ]}
+        >
+          <TouchableOpacity 
+            onPress={() => router.back()}
+            style={styles.backButton}
+          >
+            <Text style={[styles.backArrow, { color: theme.textColor }]}>←</Text>
+          </TouchableOpacity>
+          <View style={styles.headerContent}>
+            <Text style={[styles.title, { color: theme.textColor }]}>
+              Workouts & Wellness
+            </Text>
+            <Text style={[styles.subtitle, { color: theme.secondaryText }]}>
+              Train your body and mind 💪🧠
+            </Text>
+          </View>
+          <View style={styles.headerPlaceholder} />
+        </Animated.View>
+
+        {/* Stats Card */}
+        <Animated.View 
+          style={[
+            styles.statsCard,
+            { 
+              backgroundColor: theme.secondaryColor,
+              transform: [{ scale: scaleAnim }],
+              opacity: fadeAnim
+            }
+          ]}
+        >
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{workouts.filter(w => w.type === 'physical').length}</Text>
+              <Text style={styles.statLabel}>Workouts</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{workouts.filter(w => w.type === 'mental').length}</Text>
+              <Text style={styles.statLabel}>Mental</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>
+                {workouts.reduce((sum, w) => sum + (w.calories || 0), 0)}
+              </Text>
+              <Text style={styles.statLabel}>Total kcal</Text>
+            </View>
+          </View>
+        </Animated.View>
 
         {/* Category Tabs */}
-        <View style={styles.categoryContainer}>
-          <TouchableOpacity style={[styles.categoryTab, styles.categoryActive]}>
-            <Text style={styles.categoryText}>All Activities</Text>
+        <Animated.View 
+          style={[
+            styles.categoryContainer,
+            { 
+              backgroundColor: theme.cardBackground,
+              transform: [{ translateY: slideAnim }],
+              opacity: fadeAnim
+            }
+          ]}
+        >
+          <TouchableOpacity 
+            style={[
+              styles.categoryTab,
+              activeCategory === "all" && { backgroundColor: theme.categoryActive }
+            ]}
+            onPress={() => setActiveCategory("all")}
+          >
+            <Text style={[
+              styles.categoryText,
+              { color: activeCategory === "all" ? "#fff" : theme.textColor }
+            ]}>
+              All Activities
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.categoryTab}>
-            <Text style={styles.categoryText}>Physical</Text>
+          <TouchableOpacity 
+            style={[
+              styles.categoryTab,
+              activeCategory === "physical" && { backgroundColor: theme.categoryActive }
+            ]}
+            onPress={() => setActiveCategory("physical")}
+          >
+            <Text style={[
+              styles.categoryText,
+              { color: activeCategory === "physical" ? "#fff" : theme.textColor }
+            ]}>
+              Physical
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.categoryTab}>
-            <Text style={styles.categoryText}>Mental</Text>
+          <TouchableOpacity 
+            style={[
+              styles.categoryTab,
+              activeCategory === "mental" && { backgroundColor: theme.categoryActive }
+            ]}
+            onPress={() => setActiveCategory("mental")}
+          >
+            <Text style={[
+              styles.categoryText,
+              { color: activeCategory === "mental" ? "#fff" : theme.textColor }
+            ]}>
+              Mental
+            </Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
         {/* Tutorial Button */}
-        <TouchableOpacity
-          style={styles.tutorialButton}
-          onPress={() => router.push("/tutorials")}
+        <Animated.View
+          style={{
+            transform: [{ scale: scaleAnim }],
+            opacity: fadeAnim
+          }}
         >
-          <Text style={styles.tutorialButtonText}>
-            📺 Watch Tutorials & Learn
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tutorialButton, { backgroundColor: theme.primaryColor }]}
+            onPress={() => router.push("/tutorials")}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.tutorialButtonText}>
+              📺 Watch Tutorials & Learn
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
 
         {/* Workouts List */}
-        <Text style={styles.sectionTitle}>Physical Workouts</Text>
-        {workouts.filter(w => w.type === "physical").map((workout, index) => (
-          <View key={index} style={[styles.workoutCard, {borderLeftWidth: 4, borderLeftColor: workout.color}]}>
-            <View style={styles.workoutHeader}>
-              <View style={styles.workoutTitleRow}>
-                <Text style={styles.workoutEmoji}>{workout.emoji}</Text>
-                <Text style={styles.workoutTitle}>{workout.title}</Text>
+        <Animated.View 
+          style={{
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }]
+          }}
+        >
+          {activeCategory !== "mental" && (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: theme.textColor }]}>
+                  💪 Physical Workouts
+                </Text>
+                <Text style={[styles.sectionCount, { color: theme.secondaryText }]}>
+                  {workouts.filter(w => w.type === "physical").length} workouts
+                </Text>
               </View>
-              <View style={styles.workoutStats}>
-                <Text style={styles.workoutDuration}>⏱ {workout.duration}</Text>
-                <Text style={styles.workoutCalories}>🔥 {workout.calories} kcal</Text>
-              </View>
-            </View>
+              
+              {filteredWorkouts.filter(w => w.type === "physical").map((workout, index) => {
+                const anim = cardAnimations.current[index] || { 
+                  slide: new Animated.Value(0), 
+                  fade: new Animated.Value(1),
+                  scale: new Animated.Value(1)
+                };
+                
+                return (
+                  <Animated.View 
+                    key={index} 
+                    style={{
+                      opacity: anim.fade,
+                      transform: [
+                        { translateY: anim.slide },
+                        { scale: anim.scale }
+                      ]
+                    }}
+                  >
+                    <View 
+                      style={[
+                        styles.workoutCard,
+                        { 
+                          backgroundColor: theme.cardBackground,
+                          borderColor: theme.borderColor,
+                        }
+                      ]}
+                    >
+                      <View style={styles.workoutHeader}>
+                        <View style={styles.workoutTitleRow}>
+                          <View style={[styles.emojiCircle, { backgroundColor: theme.inputBackground }]}>
+                            <Text style={styles.workoutEmoji}>{workout.emoji}</Text>
+                          </View>
+                          <View style={styles.workoutTitleContent}>
+                            <Text style={[styles.workoutTitle, { color: theme.textColor }]}>
+                              {workout.title}
+                            </Text>
+                            <View style={styles.workoutMetaRow}>
+                              <Text style={[styles.workoutMeta, { color: theme.secondaryText }]}>
+                                ⏱ {workout.duration}
+                              </Text>
+                              <Text style={[styles.metaDivider, { color: theme.secondaryText }]}>•</Text>
+                              <Text style={[styles.workoutMeta, { color: theme.secondaryText }]}>
+                                🔥 {workout.calories} kcal
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
 
-            <TouchableOpacity
-              style={[styles.startButton, {backgroundColor: workout.color}]}
-              onPress={() => router.push(workout.route)}
-            >
-              <Text style={styles.startButtonText}>Start Workout →</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
+                      <TouchableOpacity
+                        style={[styles.startButton, { backgroundColor: theme.primaryColor }]}
+                        onPress={() => router.push(workout.route)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.startButtonText}>Start Workout →</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </Animated.View>
+                );
+              })}
+            </>
+          )}
 
-        {/* Mental Wellness Section */}
-        <Text style={styles.sectionTitle}>Mental Wellness</Text>
-        {workouts.filter(w => w.type === "mental").map((workout, index) => (
-          <View key={index} style={[styles.mentalCard, {backgroundColor: workout.color + '15'}]}>
-            <View style={styles.mentalHeader}>
-              <View style={styles.mentalTitleRow}>
-                <Text style={styles.mentalEmoji}>{workout.emoji}</Text>
-                <View>
-                  <Text style={styles.mentalTitle}>{workout.title}</Text>
-                  <Text style={styles.mentalDescription}>{workout.description}</Text>
-                </View>
+          {/* Mental Wellness Section */}
+          {activeCategory !== "physical" && (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: theme.textColor }]}>
+                  🧠 Mental Wellness
+                </Text>
+                <Text style={[styles.sectionCount, { color: theme.secondaryText }]}>
+                  {workouts.filter(w => w.type === "mental").length} activity
+                </Text>
               </View>
-              <Text style={styles.mentalDuration}>⏱ {workout.duration}</Text>
-            </View>
+              
+              {filteredWorkouts.filter(w => w.type === "mental").map((workout, index) => {
+                const animIndex = workouts.findIndex(w => w === workout);
+                const anim = cardAnimations.current[animIndex] || { 
+                  slide: new Animated.Value(0), 
+                  fade: new Animated.Value(1),
+                  scale: new Animated.Value(1)
+                };
+                
+                return (
+                  <Animated.View 
+                    key={index}
+                    style={{
+                      opacity: anim.fade,
+                      transform: [
+                        { translateY: anim.slide },
+                        { scale: anim.scale }
+                      ]
+                    }}
+                  >
+                    <View 
+                      style={[
+                        styles.mentalCard,
+                        { 
+                          backgroundColor: theme.cardBackground,
+                          borderColor: theme.borderColor,
+                        }
+                      ]}
+                    >
+                      <View style={styles.mentalHeader}>
+                        <View style={styles.mentalTitleRow}>
+                          <View style={[styles.mentalEmojiCircle, { backgroundColor: theme.inputBackground }]}>
+                            <Text style={styles.mentalEmoji}>{workout.emoji}</Text>
+                          </View>
+                          <View style={styles.mentalTitleContent}>
+                            <Text style={[styles.mentalTitle, { color: theme.textColor }]}>
+                              {workout.title}
+                            </Text>
+                            <Text style={[styles.mentalDescription, { color: theme.secondaryText }]}>
+                              {workout.description}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={[styles.durationBadge, { backgroundColor: theme.inputBackground }]}>
+                          <Text style={[styles.durationText, { color: theme.secondaryText }]}>
+                            ⏱ {workout.duration}
+                          </Text>
+                        </View>
+                      </View>
 
-            <View style={styles.mentalBenefits}>
-              <View style={styles.benefitItem}>
-                <Text style={styles.benefitEmoji}>😌</Text>
-                <Text style={styles.benefitText}>Stress Relief</Text>
-              </View>
-              <View style={styles.benefitItem}>
-                <Text style={styles.benefitEmoji}>🎯</Text>
-                <Text style={styles.benefitText}>Focus</Text>
-              </View>
-              <View style={styles.benefitItem}>
-                <Text style={styles.benefitEmoji}>⚡</Text>
-                <Text style={styles.benefitText}>Energy</Text>
-              </View>
-            </View>
+                      <View style={[styles.mentalBenefits, { backgroundColor: theme.inputBackground }]}>
+                        <View style={styles.benefitItem}>
+                          <Text style={styles.benefitEmoji}>😌</Text>
+                          <Text style={[styles.benefitText, { color: theme.textColor }]}>
+                            Stress Relief
+                          </Text>
+                        </View>
+                        <View style={[styles.benefitDivider, { backgroundColor: theme.borderColor }]} />
+                        <View style={styles.benefitItem}>
+                          <Text style={styles.benefitEmoji}>🎯</Text>
+                          <Text style={[styles.benefitText, { color: theme.textColor }]}>
+                            Focus
+                          </Text>
+                        </View>
+                        <View style={[styles.benefitDivider, { backgroundColor: theme.borderColor }]} />
+                        <View style={styles.benefitItem}>
+                          <Text style={styles.benefitEmoji}>⚡</Text>
+                          <Text style={[styles.benefitText, { color: theme.textColor }]}>
+                            Energy
+                          </Text>
+                        </View>
+                      </View>
 
-            <TouchableOpacity
-              style={[styles.startButton, {backgroundColor: workout.color}]}
-              onPress={() => router.push(workout.route)}
-            >
-              <Text style={styles.startButtonText}>Start Mental Fitness →</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
+                      <TouchableOpacity
+                        style={[styles.startButton, { backgroundColor: theme.primaryColor }]}
+                        onPress={() => router.push(workout.route)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.startButtonText}>Start Mental Fitness →</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </Animated.View>
+                );
+              })}
+            </>
+          )}
+        </Animated.View>
 
         {/* Quick Tips */}
-        <View style={styles.tipsCard}>
-          <Text style={styles.tipsTitle}>💡 Wellness Tip</Text>
-          <Text style={styles.tipsText}>
+        <Animated.View 
+          style={[
+            styles.tipsCard,
+            { 
+              backgroundColor: theme.cardBackground,
+              borderLeftColor: theme.primaryColor,
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <Text style={[styles.tipsTitle, { color: theme.textColor }]}>💡 Wellness Tip</Text>
+          <Text style={[styles.tipsText, { color: theme.secondaryText }]}>
             Balance physical workouts with mental exercises for complete wellbeing. 
             Try 20 minutes of meditation after your workout for best results.
           </Text>
-        </View>
+        </Animated.View>
 
-      </ScrollView>
+      </Animated.ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { 
-    flex: 1, 
-    backgroundColor: "#f5efe6" 
+    flex: 1,
   },
   container: { 
-    padding: 20, 
-    paddingBottom: 40 
+    flex: 1,
+    padding: 16,
   },
 
-  header: { 
-    marginBottom: 20 
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  backButton: {
+    padding: 8,
+  },
+  backArrow: {
+    fontSize: 28,
+    fontWeight: "700",
+  },
+  headerContent: {
+    flex: 1,
+    alignItems: "center",
   },
   title: { 
-    fontSize: 32, 
-    fontWeight: "800", 
-    color: "#4a3b31", 
-    marginBottom: 4 
+    fontSize: 24, 
+    fontWeight: "800",
+    marginBottom: 4,
   },
   subtitle: { 
-    fontSize: 16, 
-    color: "#7a6659" 
+    fontSize: 14,
+  },
+  headerPlaceholder: {
+    width: 40,
+  },
+
+  statsCard: {
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+  },
+  statItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  statValue: {
+    fontSize: 32,
+    fontWeight: "900",
+    color: "#C4935D",
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "#d4c4a8",
+    fontWeight: "600",
+  },
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
 
   categoryContainer: {
     flexDirection: "row",
     marginBottom: 20,
-    backgroundColor: "#fff",
     borderRadius: 12,
     padding: 4,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
   categoryTab: {
     flex: 1,
@@ -201,38 +618,44 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: 8,
   },
-  categoryActive: {
-    backgroundColor: "#C4935D",
-  },
   categoryText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#4a3b31",
   },
 
   tutorialButton: {
-    backgroundColor: "#4a3b31",
-    paddingVertical: 14,
-    borderRadius: 24,
+    paddingVertical: 16,
+    borderRadius: 12,
     alignItems: "center",
-    marginVertical: 20,
+    marginBottom: 24,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
   tutorialButtonText: { 
     color: "#fff", 
     fontSize: 16, 
-    fontWeight: "600" 
+    fontWeight: "700",
   },
 
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#4a3b31",
-    marginTop: 10,
-    marginBottom: 15,
+  },
+  sectionCount: {
+    fontSize: 12,
+    fontWeight: "600",
   },
 
   workoutCard: {
-    backgroundColor: "#fff",
     borderRadius: 16,
     padding: 18,
     marginBottom: 16,
@@ -241,135 +664,159 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    borderWidth: 1,
   },
   workoutHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     marginBottom: 16,
   },
   workoutTitleRow: {
     flexDirection: "row",
     alignItems: "center",
   },
+  emojiCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+  },
   workoutEmoji: {
-    fontSize: 24,
-    marginRight: 12,
+    fontSize: 28,
+  },
+  workoutTitleContent: {
+    flex: 1,
   },
   workoutTitle: { 
     fontSize: 18, 
-    fontWeight: "700", 
-    color: "#4a3b31" 
+    fontWeight: "700",
+    marginBottom: 6,
   },
-  workoutStats: {
-    alignItems: "flex-end",
+  workoutMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
-  workoutDuration: { 
-    fontSize: 14, 
-    color: "#7a6659",
-    marginBottom: 4 
+  workoutMeta: { 
+    fontSize: 13,
+    fontWeight: "600",
   },
-  workoutCalories: { 
-    fontSize: 14, 
-    color: "#e74c3c",
-    fontWeight: "600" 
+  metaDivider: {
+    marginHorizontal: 8,
+    color: "#888",
   },
 
   mentalCard: {
-    backgroundColor: "#fff",
     borderRadius: 16,
-    padding: 18,
+    padding: 20,
     marginBottom: 20,
     elevation: 3,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    borderWidth: 2,
-    borderColor: "#9b59b620",
+    borderWidth: 1,
   },
   mentalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     marginBottom: 16,
   },
   mentalTitleRow: {
     flexDirection: "row",
     alignItems: "center",
-    flex: 1,
+    marginBottom: 12,
+  },
+  mentalEmojiCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
   },
   mentalEmoji: {
     fontSize: 32,
-    marginRight: 12,
+  },
+  mentalTitleContent: {
+    flex: 1,
   },
   mentalTitle: { 
     fontSize: 20, 
-    fontWeight: "700", 
-    color: "#9b59b6" 
+    fontWeight: "700",
+    marginBottom: 4,
   },
   mentalDescription: { 
-    fontSize: 13, 
-    color: "#9b59b6",
-    opacity: 0.8,
-    marginTop: 2
+    fontSize: 13,
+    fontWeight: "500",
   },
-  mentalDuration: { 
-    fontSize: 14, 
-    color: "#9b59b6",
-    fontWeight: "600" 
+  durationBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    alignSelf: "flex-start",
+  },
+  durationText: {
+    fontSize: 13,
+    fontWeight: "700",
   },
 
   mentalBenefits: {
     flexDirection: "row",
     justifyContent: "space-around",
     marginBottom: 20,
-    backgroundColor: "#f9f7fc",
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
   },
   benefitItem: {
     alignItems: "center",
+    flex: 1,
+  },
+  benefitDivider: {
+    width: 1,
   },
   benefitEmoji: {
-    fontSize: 20,
-    marginBottom: 4,
+    fontSize: 24,
+    marginBottom: 6,
   },
   benefitText: {
     fontSize: 12,
-    color: "#9b59b6",
     fontWeight: "600",
+    textAlign: "center",
   },
 
   startButton: {
-    backgroundColor: "#5b4334",
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   startButtonText: { 
     color: "#fff", 
     fontSize: 16, 
-    fontWeight: "600" 
+    fontWeight: "700",
   },
 
   tipsCard: {
-    backgroundColor: "#fff",
     borderRadius: 16,
-    padding: 18,
+    padding: 20,
     marginTop: 10,
+    marginBottom: 40,
     borderLeftWidth: 4,
-    borderLeftColor: "#C4935D",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   tipsTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#4a3b31",
     marginBottom: 10,
   },
   tipsText: {
     fontSize: 14,
-    color: "#7a6659",
     lineHeight: 22,
   },
 });
