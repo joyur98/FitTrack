@@ -119,23 +119,33 @@ export default function FTAI() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#eee4d8",
+    backgroundColor: "#f8f3ea",
   },
+
   container: {
     flex: 1,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
   },
+
   title: {
-    color: "#2b1b14",
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: "800",
+    color: "#3b2a23",
     textAlign: "center",
-    marginVertical: 12,
+    marginTop: 14,
+  },
+
+  subtitle: {
+    textAlign: "center",
+    color: "#8b6f5a",
+    fontSize: 14,
+    marginBottom: 12,
   },
 
   chatBox: {
     flex: 1,
   },
+
   chatContent: {
     paddingBottom: 20,
   },
@@ -144,24 +154,27 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 18,
     marginVertical: 6,
-    maxWidth: "78%",
+    maxWidth: "80%",
     shadowColor: "#000",
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
   },
+
   userMsg: {
     alignSelf: "flex-end",
-    backgroundColor: "#6f4e37",
+    backgroundColor: "#7B3F00",
     borderBottomRightRadius: 6,
   },
+
   botMsg: {
     alignSelf: "flex-start",
-    backgroundColor: "#3b2a23",
+    backgroundColor: "#A52A2A",
     borderBottomLeftRadius: 6,
   },
+
   msgText: {
-    color: "#f5efe6",
+    color: "#ffffff",
     fontSize: 15,
     lineHeight: 21,
   },
@@ -169,27 +182,34 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
-    marginBottom: Platform.OS === "ios" ? 6 : 0,
+    paddingVertical: 10,
+    marginBottom: 8,
   },
+
   input: {
     flex: 1,
-    backgroundColor: "#3b2a23",
-    color: "#f5efe6",
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 14,
+    backgroundColor: "#ffffff",
+    color: "#3b2a23",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 18,
     fontSize: 15,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
+
   sendBtn: {
-    marginLeft: 8,
-    backgroundColor: "#c19a6b",
-    paddingVertical: 12,
+    marginLeft: 10,
+    backgroundColor: "#5C4033",
+    paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 14,
+    borderRadius: 18,
   },
+
   sendText: {
-    color: "#2b1b14",
+    color: "#ffffff",
     fontWeight: "700",
     fontSize: 15,
   },

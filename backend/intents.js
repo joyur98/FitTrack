@@ -1,27 +1,60 @@
 import { FOOD_CALORIES } from "./food.js";
 import { WORKOUTS } from "./workout.js";
 
+
+
+function extractGrams(text) {
+  const match = text.match(/(\d+(\.\d+)?)\s?(kg|kilogram|kilograms|g|gram|grams)/);
+
+  if (!match) return null;
+
+  const value = parseFloat(match[1]);
+  const unit = match[3];
+
+  // Convert kg to grams
+  if (unit.startsWith("kg") || unit.startsWith("kilogram")) {
+    return Math.round(value * 1000);
+  }
+
+  return Math.round(value);
+}
+
+
 export const INTENTS = [
-  {
-    label: "CALORIES",
-    examples: [
-      "How many calories are in banana",
-      "Calories in apple",
-      "Nutrition of rice",
-    ],
-    //Dynamic response based on user input
-    response: ({ text }) => {
-      for (const food in FOOD_CALORIES) {
-        const readableFood = food.replace("_", " ");
-        if (text.includes(readableFood)) {
-          const { calories, unit } = FOOD_CALORIES[food];
-          return `A ${unit} of ${readableFood} has about ${calories} calories.`;
+ {
+  label: "CALORIES",
+  examples: [
+    "How many calories are in banana",
+    "Calories in 100g chicken breast",
+    "Nutrition of 50 grams paneer",
+  ],
+  response: ({ text }) => {
+    const gramsAsked = extractGrams(text);
+
+    for (const food in FOOD_CALORIES) {
+      const readableFood = food.replace("_", " ");
+
+      if (text.includes(readableFood)) {
+        const { calories, grams, unit } = FOOD_CALORIES[food];
+        const caloriesPerGram = calories / grams;
+
+        // If user specified grams
+        if (gramsAsked) {
+          const totalCalories = Math.round(
+            caloriesPerGram * gramsAsked
+          );
+
+          return `${gramsAsked}g of ${readableFood} has about ${totalCalories} calories.`;
         }
+
+        // Default response (no grams specified)
+        return `A ${unit} of ${readableFood} has about ${calories} calories.`;
       }
-      //If no food item is found in the input
-      return "Tell me the food name and I’ll give you its calorie information.";
-    },
+    }
+
+    return "Tell me the food name and quantity (for example: 100g chicken).";
   },
+},
 
   {
     label: "WORKOUT",
