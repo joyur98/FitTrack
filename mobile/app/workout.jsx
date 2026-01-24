@@ -1,4 +1,4 @@
-// workout.jsx - ENHANCED WITH ANIMATIONS & DARK MODE
+// workout.jsx - ENHANCED WITH ANIMATIONS & DARK MODE (TABS REMOVED)
 import React, { useEffect, useState, useRef } from "react";
 import {
   View,
@@ -61,7 +61,6 @@ const workouts = [
 
 export default function WorkoutScreen() {
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [activeCategory, setActiveCategory] = useState("all");
   
   // Animation values
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -176,14 +175,10 @@ export default function WorkoutScreen() {
     primaryColor: "#C4935D",
     secondaryColor: isDarkMode ? "#2d2d2d" : "#4a3b31",
     inputBackground: isDarkMode ? "#2d2d2d" : "#f8f5f0",
-    categoryActive: isDarkMode ? "#C4935D" : "#C4935D",
-    categoryInactive: isDarkMode ? "#2d2d2d" : "#fff",
   };
 
-  // Filter workouts based on category
-  const filteredWorkouts = activeCategory === "all" 
-    ? workouts 
-    : workouts.filter(w => w.type === activeCategory);
+  const physicalWorkouts = workouts.filter(w => w.type === "physical");
+  const mentalWorkouts = workouts.filter(w => w.type === "mental");
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.backgroundColor }]}>
@@ -191,7 +186,6 @@ export default function WorkoutScreen() {
         style={[styles.container, { opacity: fadeAnim }]} 
         showsVerticalScrollIndicator={false}
       >
-        
         {/* Header */}
         <Animated.View 
           style={[
@@ -232,12 +226,12 @@ export default function WorkoutScreen() {
         >
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{workouts.filter(w => w.type === 'physical').length}</Text>
+              <Text style={styles.statValue}>{physicalWorkouts.length}</Text>
               <Text style={styles.statLabel}>Workouts</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{workouts.filter(w => w.type === 'mental').length}</Text>
+              <Text style={styles.statValue}>{mentalWorkouts.length}</Text>
               <Text style={styles.statLabel}>Mental</Text>
             </View>
             <View style={styles.statDivider} />
@@ -248,61 +242,6 @@ export default function WorkoutScreen() {
               <Text style={styles.statLabel}>Total kcal</Text>
             </View>
           </View>
-        </Animated.View>
-
-        {/* Category Tabs */}
-        <Animated.View 
-          style={[
-            styles.categoryContainer,
-            { 
-              backgroundColor: theme.cardBackground,
-              transform: [{ translateY: slideAnim }],
-              opacity: fadeAnim
-            }
-          ]}
-        >
-          <TouchableOpacity 
-            style={[
-              styles.categoryTab,
-              activeCategory === "all" && { backgroundColor: theme.categoryActive }
-            ]}
-            onPress={() => setActiveCategory("all")}
-          >
-            <Text style={[
-              styles.categoryText,
-              { color: activeCategory === "all" ? "#fff" : theme.textColor }
-            ]}>
-              All Activities
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[
-              styles.categoryTab,
-              activeCategory === "physical" && { backgroundColor: theme.categoryActive }
-            ]}
-            onPress={() => setActiveCategory("physical")}
-          >
-            <Text style={[
-              styles.categoryText,
-              { color: activeCategory === "physical" ? "#fff" : theme.textColor }
-            ]}>
-              Physical
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[
-              styles.categoryTab,
-              activeCategory === "mental" && { backgroundColor: theme.categoryActive }
-            ]}
-            onPress={() => setActiveCategory("mental")}
-          >
-            <Text style={[
-              styles.categoryText,
-              { color: activeCategory === "mental" ? "#fff" : theme.textColor }
-            ]}>
-              Mental
-            </Text>
-          </TouchableOpacity>
         </Animated.View>
 
         {/* Tutorial Button */}
@@ -323,185 +262,170 @@ export default function WorkoutScreen() {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Workouts List */}
-        <Animated.View 
-          style={{
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }]
-          }}
-        >
-          {activeCategory !== "mental" && (
-            <>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: theme.textColor }]}>
-                  💪 Physical Workouts
-                </Text>
-                <Text style={[styles.sectionCount, { color: theme.secondaryText }]}>
-                  {workouts.filter(w => w.type === "physical").length} workouts
-                </Text>
-              </View>
-              
-              {filteredWorkouts.filter(w => w.type === "physical").map((workout, index) => {
-                const anim = cardAnimations.current[index] || { 
-                  slide: new Animated.Value(0), 
-                  fade: new Animated.Value(1),
-                  scale: new Animated.Value(1)
-                };
-                
-                return (
-                  <Animated.View 
-                    key={index} 
-                    style={{
-                      opacity: anim.fade,
-                      transform: [
-                        { translateY: anim.slide },
-                        { scale: anim.scale }
-                      ]
-                    }}
-                  >
-                    <View 
-                      style={[
-                        styles.workoutCard,
-                        { 
-                          backgroundColor: theme.cardBackground,
-                          borderColor: theme.borderColor,
-                        }
-                      ]}
-                    >
-                      <View style={styles.workoutHeader}>
-                        <View style={styles.workoutTitleRow}>
-                          <View style={[styles.emojiCircle, { backgroundColor: theme.inputBackground }]}>
-                            <Text style={styles.workoutEmoji}>{workout.emoji}</Text>
-                          </View>
-                          <View style={styles.workoutTitleContent}>
-                            <Text style={[styles.workoutTitle, { color: theme.textColor }]}>
-                              {workout.title}
-                            </Text>
-                            <View style={styles.workoutMetaRow}>
-                              <Text style={[styles.workoutMeta, { color: theme.secondaryText }]}>
-                                ⏱ {workout.duration}
-                              </Text>
-                              <Text style={[styles.metaDivider, { color: theme.secondaryText }]}>•</Text>
-                              <Text style={[styles.workoutMeta, { color: theme.secondaryText }]}>
-                                🔥 {workout.calories} kcal
-                              </Text>
-                            </View>
-                          </View>
-                        </View>
-                      </View>
-
-                      <TouchableOpacity
-                        style={[styles.startButton, { backgroundColor: theme.primaryColor }]}
-                        onPress={() => router.push(workout.route)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.startButtonText}>Start Workout →</Text>
-                      </TouchableOpacity>
+        {/* Physical Workouts Section - ALWAYS SHOWN */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.textColor }]}>
+            💪 Physical Workouts
+          </Text>
+          <Text style={[styles.sectionCount, { color: theme.secondaryText }]}>
+            {physicalWorkouts.length} workouts
+          </Text>
+        </View>
+        
+        {physicalWorkouts.map((workout, index) => {
+          const anim = cardAnimations.current[index] || { 
+            slide: new Animated.Value(0), 
+            fade: new Animated.Value(1),
+            scale: new Animated.Value(1)
+          };
+          
+          return (
+            <Animated.View 
+              key={index} 
+              style={{
+                opacity: anim.fade,
+                transform: [
+                  { translateY: anim.slide },
+                  { scale: anim.scale }
+                ]
+              }}
+            >
+              <View 
+                style={[
+                  styles.workoutCard,
+                  { 
+                    backgroundColor: theme.cardBackground,
+                    borderColor: theme.borderColor,
+                  }
+                ]}
+              >
+                <View style={styles.workoutHeader}>
+                  <View style={styles.workoutTitleRow}>
+                    <View style={[styles.emojiCircle, { backgroundColor: theme.inputBackground }]}>
+                      <Text style={styles.workoutEmoji}>{workout.emoji}</Text>
                     </View>
-                  </Animated.View>
-                );
-              })}
-            </>
-          )}
-
-          {/* Mental Wellness Section */}
-          {activeCategory !== "physical" && (
-            <>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: theme.textColor }]}>
-                  🧠 Mental Wellness
-                </Text>
-                <Text style={[styles.sectionCount, { color: theme.secondaryText }]}>
-                  {workouts.filter(w => w.type === "mental").length} activity
-                </Text>
-              </View>
-              
-              {filteredWorkouts.filter(w => w.type === "mental").map((workout, index) => {
-                const animIndex = workouts.findIndex(w => w === workout);
-                const anim = cardAnimations.current[animIndex] || { 
-                  slide: new Animated.Value(0), 
-                  fade: new Animated.Value(1),
-                  scale: new Animated.Value(1)
-                };
-                
-                return (
-                  <Animated.View 
-                    key={index}
-                    style={{
-                      opacity: anim.fade,
-                      transform: [
-                        { translateY: anim.slide },
-                        { scale: anim.scale }
-                      ]
-                    }}
-                  >
-                    <View 
-                      style={[
-                        styles.mentalCard,
-                        { 
-                          backgroundColor: theme.cardBackground,
-                          borderColor: theme.borderColor,
-                        }
-                      ]}
-                    >
-                      <View style={styles.mentalHeader}>
-                        <View style={styles.mentalTitleRow}>
-                          <View style={[styles.mentalEmojiCircle, { backgroundColor: theme.inputBackground }]}>
-                            <Text style={styles.mentalEmoji}>{workout.emoji}</Text>
-                          </View>
-                          <View style={styles.mentalTitleContent}>
-                            <Text style={[styles.mentalTitle, { color: theme.textColor }]}>
-                              {workout.title}
-                            </Text>
-                            <Text style={[styles.mentalDescription, { color: theme.secondaryText }]}>
-                              {workout.description}
-                            </Text>
-                          </View>
-                        </View>
-                        <View style={[styles.durationBadge, { backgroundColor: theme.inputBackground }]}>
-                          <Text style={[styles.durationText, { color: theme.secondaryText }]}>
-                            ⏱ {workout.duration}
-                          </Text>
-                        </View>
+                    <View style={styles.workoutTitleContent}>
+                      <Text style={[styles.workoutTitle, { color: theme.textColor }]}>
+                        {workout.title}
+                      </Text>
+                      <View style={styles.workoutMetaRow}>
+                        <Text style={[styles.workoutMeta, { color: theme.secondaryText }]}>
+                          ⏱ {workout.duration}
+                        </Text>
+                        <Text style={[styles.metaDivider, { color: theme.secondaryText }]}>•</Text>
+                        <Text style={[styles.workoutMeta, { color: theme.secondaryText }]}>
+                          🔥 {workout.calories} kcal
+                        </Text>
                       </View>
-
-                      <View style={[styles.mentalBenefits, { backgroundColor: theme.inputBackground }]}>
-                        <View style={styles.benefitItem}>
-                          <Text style={styles.benefitEmoji}>😌</Text>
-                          <Text style={[styles.benefitText, { color: theme.textColor }]}>
-                            Stress Relief
-                          </Text>
-                        </View>
-                        <View style={[styles.benefitDivider, { backgroundColor: theme.borderColor }]} />
-                        <View style={styles.benefitItem}>
-                          <Text style={styles.benefitEmoji}>🎯</Text>
-                          <Text style={[styles.benefitText, { color: theme.textColor }]}>
-                            Focus
-                          </Text>
-                        </View>
-                        <View style={[styles.benefitDivider, { backgroundColor: theme.borderColor }]} />
-                        <View style={styles.benefitItem}>
-                          <Text style={styles.benefitEmoji}>⚡</Text>
-                          <Text style={[styles.benefitText, { color: theme.textColor }]}>
-                            Energy
-                          </Text>
-                        </View>
-                      </View>
-
-                      <TouchableOpacity
-                        style={[styles.startButton, { backgroundColor: theme.primaryColor }]}
-                        onPress={() => router.push(workout.route)}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.startButtonText}>Start Mental Fitness →</Text>
-                      </TouchableOpacity>
                     </View>
-                  </Animated.View>
-                );
-              })}
-            </>
-          )}
-        </Animated.View>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.startButton, { backgroundColor: theme.primaryColor }]}
+                  onPress={() => router.push(workout.route)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.startButtonText}>Start Workout →</Text>
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          );
+        })}
+
+        {/* Mental Wellness Section - ALWAYS SHOWN */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.textColor }]}>
+            🧠 Mental Wellness
+          </Text>
+          <Text style={[styles.sectionCount, { color: theme.secondaryText }]}>
+            {mentalWorkouts.length} activity
+          </Text>
+        </View>
+        
+        {mentalWorkouts.map((workout, index) => {
+          const animIndex = workouts.findIndex(w => w === workout);
+          const anim = cardAnimations.current[animIndex] || { 
+            slide: new Animated.Value(0), 
+            fade: new Animated.Value(1),
+            scale: new Animated.Value(1)
+          };
+          
+          return (
+            <Animated.View 
+              key={index}
+              style={{
+                opacity: anim.fade,
+                transform: [
+                  { translateY: anim.slide },
+                  { scale: anim.scale }
+                ]
+              }}
+            >
+              <View 
+                style={[
+                  styles.mentalCard,
+                  { 
+                    backgroundColor: theme.cardBackground,
+                    borderColor: theme.borderColor,
+                  }
+                ]}
+              >
+                <View style={styles.mentalHeader}>
+                  <View style={styles.mentalTitleRow}>
+                    <View style={[styles.mentalEmojiCircle, { backgroundColor: theme.inputBackground }]}>
+                      <Text style={styles.mentalEmoji}>{workout.emoji}</Text>
+                    </View>
+                    <View style={styles.mentalTitleContent}>
+                      <Text style={[styles.mentalTitle, { color: theme.textColor }]}>
+                        {workout.title}
+                      </Text>
+                      <Text style={[styles.mentalDescription, { color: theme.secondaryText }]}>
+                        {workout.description}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={[styles.durationBadge, { backgroundColor: theme.inputBackground }]}>
+                    <Text style={[styles.durationText, { color: theme.secondaryText }]}>
+                      ⏱ {workout.duration}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={[styles.mentalBenefits, { backgroundColor: theme.inputBackground }]}>
+                  <View style={styles.benefitItem}>
+                    <Text style={styles.benefitEmoji}>😌</Text>
+                    <Text style={[styles.benefitText, { color: theme.textColor }]}>
+                      Stress Relief
+                    </Text>
+                  </View>
+                  <View style={[styles.benefitDivider, { backgroundColor: theme.borderColor }]} />
+                  <View style={styles.benefitItem}>
+                    <Text style={styles.benefitEmoji}>🎯</Text>
+                    <Text style={[styles.benefitText, { color: theme.textColor }]}>
+                      Focus
+                    </Text>
+                  </View>
+                  <View style={[styles.benefitDivider, { backgroundColor: theme.borderColor }]} />
+                  <View style={styles.benefitItem}>
+                    <Text style={styles.benefitEmoji}>⚡</Text>
+                    <Text style={[styles.benefitText, { color: theme.textColor }]}>
+                      Energy
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.startButton, { backgroundColor: theme.primaryColor }]}
+                  onPress={() => router.push(workout.route)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.startButtonText}>Start Mental Fitness →</Text>
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          );
+        })}
 
         {/* Quick Tips */}
         <Animated.View 
@@ -521,7 +445,6 @@ export default function WorkoutScreen() {
             Try 20 minutes of meditation after your workout for best results.
           </Text>
         </Animated.View>
-
       </Animated.ScrollView>
     </SafeAreaView>
   );
@@ -599,28 +522,6 @@ const styles = StyleSheet.create({
     width: 1,
     height: 40,
     backgroundColor: "rgba(255, 255, 255, 0.2)",
-  },
-
-  categoryContainer: {
-    flexDirection: "row",
-    marginBottom: 20,
-    borderRadius: 12,
-    padding: 4,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-  },
-  categoryTab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  categoryText: {
-    fontSize: 14,
-    fontWeight: "600",
   },
 
   tutorialButton: {
