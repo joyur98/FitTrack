@@ -43,7 +43,7 @@ const workouts = [
     title: "Mental Fitness",
     calories: 0,
     duration: "5-15 min",
-    route: "/MentalFitness",
+    route: "/mentalFitness",
     emoji: "🧠",
     type: "mental",
     color: "#9b59b6",
