@@ -239,7 +239,7 @@ export default function ProfileScreen() {
         <View style={styles.profileHeader}>
           <View style={styles.statusIndicator} />
           
-          <TouchableOpacity onPress={pickProfileImage} style={styles.profileContainer}>
+          <View style={styles.profileContainer}>
             {profileImage ? (
               <Image
                 source={{ uri: profileImage }}
@@ -253,13 +253,7 @@ export default function ProfileScreen() {
                 <Text style={styles.avatar}>👤</Text>
               </View>
             )}
-            <View style={[styles.cameraIconOverlay, { 
-              backgroundColor: theme.secondaryColor,
-              borderColor: theme.backgroundColor 
-            }]}>
-              <Text style={styles.cameraIcon}>📷</Text>
-            </View>
-          </TouchableOpacity>
+          </View>
           
           <Text style={[styles.userName, { color: theme.textColor }]}>
             {user?.name || "User"}
@@ -408,21 +402,6 @@ const styles = StyleSheet.create({
   },
   avatar: {
     fontSize: 50,
-  },
-  cameraIconOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-  },
-  cameraIcon: {
-    fontSize: 18,
-    color: 'white',
   },
   userName: {
     fontSize: 28,
