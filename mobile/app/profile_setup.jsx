@@ -32,6 +32,8 @@ export default function ProfileSetup() {
   const [fitnessFocus, setFitnessFocus] = useState("strength");
   const [loading, setLoading] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [bmi, setBmi] = useState(null);
+  const [bmiCategory, setBmiCategory] = useState("");
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -81,6 +83,58 @@ export default function ProfileSetup() {
       }).start();
     });
   }, []);
+
+  // Calculate BMI when height or weight changes
+  useEffect(() => {
+    calculateBMI();
+  }, [height, weight]);
+
+  // Function to calculate BMI and determine category
+  const calculateBMI = () => {
+    if (height && weight) {
+      const heightNum = Number(height);
+      const weightNum = Number(weight);
+      
+      if (heightNum > 0 && weightNum > 0) {
+        // Convert height from cm to meters
+        const heightInMeters = heightNum / 100;
+        const bmiValue = weightNum / (heightInMeters * heightInMeters);
+        const roundedBMI = Math.round(bmiValue * 10) / 10; // Round to 1 decimal
+        
+        setBmi(roundedBMI);
+        
+        // Determine BMI category
+        if (bmiValue < 18.5) {
+          setBmiCategory("Underweight");
+        } else if (bmiValue >= 18.5 && bmiValue < 25) {
+          setBmiCategory("Normal weight");
+        } else if (bmiValue >= 25 && bmiValue < 30) {
+          setBmiCategory("Overweight");
+        } else {
+          setBmiCategory("Obese");
+        }
+      }
+    } else {
+      setBmi(null);
+      setBmiCategory("");
+    }
+  };
+
+  // Get color for BMI category
+  const getBMICategoryColor = () => {
+    switch (bmiCategory) {
+      case "Underweight":
+        return "#FFD93D"; // Yellow
+      case "Normal weight":
+        return "#4ECDC4"; // Teal
+      case "Overweight":
+        return "#FF9F1C"; // Orange
+      case "Obese":
+        return "#FF6B6B"; // Red
+      default:
+        return theme.secondaryText;
+    }
+  };
 
   // Shake animation for errors
   const triggerShake = () => {
@@ -150,6 +204,9 @@ export default function ProfileSetup() {
       return;
     }
 
+    // Recalculate BMI to ensure it's current
+    calculateBMI();
+
     // Button press animation
     Animated.sequence([
       Animated.timing(buttonAnim, {
@@ -169,6 +226,23 @@ export default function ProfileSetup() {
       const user = auth.currentUser;
       if (!user) return;
 
+      // Calculate BMI again to ensure we have the latest value
+      const heightInMeters = heightNum / 100;
+      const bmiValue = weightNum / (heightInMeters * heightInMeters);
+      const roundedBMI = Math.round(bmiValue * 10) / 10;
+      
+      // Determine BMI category
+      let bmiCategoryValue;
+      if (bmiValue < 18.5) {
+        bmiCategoryValue = "Underweight";
+      } else if (bmiValue >= 18.5 && bmiValue < 25) {
+        bmiCategoryValue = "Normal weight";
+      } else if (bmiValue >= 25 && bmiValue < 30) {
+        bmiCategoryValue = "Overweight";
+      } else {
+        bmiCategoryValue = "Obese";
+      }
+
       await updateDoc(doc(db, "users", user.uid), {
         height: heightNum,
         weight: weightNum,
@@ -177,6 +251,8 @@ export default function ProfileSetup() {
         activityLevel,
         goal,
         fitnessFocus,
+        bmi: roundedBMI,
+        bmiCategory: bmiCategoryValue,
         updatedAt: serverTimestamp(),
         profileSetupCompleted: true,
       });
@@ -194,7 +270,10 @@ export default function ProfileSetup() {
           useNativeDriver: true,
         }),
       ]).start(() => {
-        Alert.alert("✅ Profile Complete", "Your fitness journey begins now!");
+        Alert.alert(
+          "✅ Profile Complete", 
+          `Your BMI is ${roundedBMI} (${bmiCategoryValue}). Your fitness journey begins now!`
+        );
         router.replace("/dashboard");
       });
 
@@ -449,6 +528,28 @@ export default function ProfileSetup() {
               </View>
             </View>
 
+            {/* BMI Display */}
+            {bmi && (
+              <View style={[styles.bmiContainer, { backgroundColor: theme.inputBackground }]}>
+                <Text style={[styles.bmiTitle, { color: theme.textColor }]}>
+                  Your BMI
+                </Text>
+                <View style={styles.bmiValueContainer}>
+                  <Text style={[styles.bmiValue, { color: getBMICategoryColor() }]}>
+                    {bmi}
+                  </Text>
+                  <View style={[styles.bmiCategoryBadge, { backgroundColor: getBMICategoryColor() + '20' }]}>
+                    <Text style={[styles.bmiCategory, { color: getBMICategoryColor() }]}>
+                      {bmiCategory}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={[styles.bmiInfo, { color: theme.secondaryText }]}>
+                  Body Mass Index (BMI) helps assess your weight category
+                </Text>
+              </View>
+            )}
+
             {/* Calories Preview */}
             {targetCalories && (
               <View style={[styles.caloriesPreview, { backgroundColor: theme.inputBackground }]}>
@@ -576,6 +677,40 @@ const styles = StyleSheet.create({
   picker: {
     padding: 16,
     fontSize: 16,
+  },
+  bmiContainer: {
+    borderRadius: 16,
+    padding: 20,
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  bmiTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  bmiValueContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 8,
+  },
+  bmiValue: {
+    fontSize: 36,
+    fontWeight: "800",
+  },
+  bmiCategoryBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  bmiCategory: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  bmiInfo: {
+    fontSize: 12,
+    textAlign: "center",
   },
   caloriesPreview: {
     borderRadius: 16,
