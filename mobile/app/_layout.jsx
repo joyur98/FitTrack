@@ -19,6 +19,7 @@ export default function RootLayout() {
               fontWeight: "bold",
             },
             headerTitle: "",
+            
           })}
         >
           {/* Authentication routes */}

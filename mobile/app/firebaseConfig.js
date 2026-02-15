@@ -14,4 +14,5 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
-export const db = getFirestore(app); 
+export const db = getFirestore(app);
+export { getMessaging } from "firebase/messaging"; // FCM Support

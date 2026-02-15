@@ -1,4 +1,4 @@
-// MentalFitness.jsx
+// MentalFitness.jsx - WITH RESOURCES SECTION REMOVED
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
@@ -379,14 +379,6 @@ export default function MentalFitnessScreen() {
     { emoji: "👁️", text: "Close your eyes and count to 10 slowly", color: isDarkMode ? "#3D1C2C" : "#FDE6F1" },
   ];
 
-  // Resources with dark mode support
-  const resources = [
-    { emoji: "📞", title: "Crisis Helpline (Nepal)", subtitle: "Call 1166 for mental health support", color: isDarkMode ? "#3D242A" : "#FDEEF1" },
-    { emoji: "📱", title: "Meditation Apps", subtitle: "Headspace, Calm, Insight Timer", color: isDarkMode ? "#1C2A24" : "#E6F7F2" },
-    { emoji: "📖", title: "Journaling", subtitle: "Write down your thoughts daily", color: isDarkMode ? "#3D2C29" : "#FFF9E6" },
-    { emoji: "👥", title: "Support Groups", subtitle: "Connect with others going through similar experiences", color: isDarkMode ? "#1C2A2E" : "#E6F3F8" },
-  ];
-
   // Show loading screen while fetching theme
   if (isThemeLoading) {
     return (
@@ -689,6 +681,7 @@ export default function MentalFitnessScreen() {
               transform: [{ translateY: slideAnim }],
               backgroundColor: currentTheme.surfaceColor,
               shadowColor: currentTheme.shadowColor,
+              marginBottom: 30, // Added margin bottom since this is now the last card
             }
           ]}
         >
@@ -728,43 +721,8 @@ export default function MentalFitnessScreen() {
           </View>
         </Animated.View>
 
-        {/* Resources */}
-        <Animated.View 
-          style={[
-            styles.card,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-              backgroundColor: currentTheme.surfaceColor,
-              shadowColor: currentTheme.shadowColor,
-              marginBottom: 30,
-            }
-          ]}
-        >
-          <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, { color: currentTheme.primaryText }]}>
-              📚 Mental Health Resources
-            </Text>
-          </View>
-          
-          {resources.map((resource, index) => (
-            <TouchableOpacity 
-              key={index} 
-              style={[styles.resourceItem, { backgroundColor: resource.color }]}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.resourceEmoji}>{resource.emoji}</Text>
-              <View style={styles.resourceText}>
-                <Text style={[styles.resourceTitle, { color: currentTheme.primaryText }]}>
-                  {resource.title}
-                </Text>
-                <Text style={[styles.resourceSubtitle, { color: currentTheme.secondaryText }]}>
-                  {resource.subtitle}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </Animated.View>
+        {/* MENTAL HEALTH RESOURCES SECTION HAS BEEN REMOVED */}
+
       </Animated.ScrollView>
 
       {/* Mood Modal */}
@@ -1120,35 +1078,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     lineHeight: 20,
-  },
-  
-  // Resources
-  resourceItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    elevation: 1,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  resourceEmoji: {
-    fontSize: 24,
-    marginRight: 16,
-  },
-  resourceText: {
-    flex: 1,
-  },
-  resourceTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  resourceSubtitle: {
-    fontSize: 14,
-    lineHeight: 18,
   },
   
   // Modal
